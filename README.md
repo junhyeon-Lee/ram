@@ -3,7 +3,7 @@
 박치기 공룡이 방에서 방으로 싸워 나가는 3D 근접 격투 로그라이크.
 진행 방식은 하데스, 싸우는 손맛은 시푸에서 가져온다.
 
-- 설계 문서: https://claude.ai/artifact/84osqWgQkDQugsrKgKLPxC
+- 설계 결정: [`docs/design.md`](docs/design.md) (원본 문서: https://claude.ai/artifact/84osqWgQkDQugsrKgKLPxC)
 - 엔진: Godot 4 · 플랫폼: Windows PC
 - 아트: 로우폴리 + 단색 면 + 약한 명암
 
@@ -17,11 +17,12 @@
 | `tools/blender/build_helpers.py` | 조력자 4인 첫 디자인 모델 스크립트 |
 | `assets/characters/ram/` | 주인공 모델. `dino.*` 정지 모델, `ram_rigged.*` 뼈대·동작 포함 (Godot 에는 `ram_rigged.glb`) |
 | `assets/characters/helpers/` | 조력자 모델 (`crane`·`sheep`·`catfish`·`flyfish` .glb/.blend) |
-| `docs/renders/` | 렌더 사진 (`latest/` 최신, `checkpoint_*/` 체크포인트 기록) |
+| `docs/design.md` | 확정한 설계 결정 (조작·카메라·디자인 규칙·빌드와 조력자) |
+| `docs/renders/` | 렌더 사진: `latest/` 최신 · `checkpoint_01/` 첫 모델 · `helpers/` 조력자 · `explorations/` 비교 시안 |
 
 ## 주인공 모델 다시 만들기
 
-Blender 없이 파이썬 모듈 `bpy`로 돌린다 (Python 3.13).
+Blender 없이 파이썬 모듈 `bpy`로 돌린다 (bpy 5.2 는 Python 3.13 필요).
 
 ```bash
 python -m venv .venv
@@ -78,15 +79,14 @@ python -m venv .venv
 
 첫 디자인: `.venv/bin/python tools/blender/build_helpers.py out` → `docs/renders/helpers/lineup.png`(Ram 과 나란히)
 
-## 체크포인트
+## 작업 기록
 
-- **checkpoint_01** — 첫 주인공 모델. 돌머리가 몸과 한 덩어리, 반달 동심원 눈, 짧은 주둥이와 입선, 차콜 바탕 + 빌드 색 슬롯. 삼각형 약 2,700개.
-- 이후 — 주둥이 가시 제거(돌기는 돌머리 테두리에만). 최신 렌더는 `docs/renders/latest/`.
-- 이후 — 머리 쪽(머리·주둥이·돌머리·눈·입선·돌기)을 목 끝 기준 1.3배(`HEAD_SCALE`), 다리를 약 1.35배 굵게.
-- 이후 — 다리를 듬직하게: 곧고 굵은 기둥형, 넓은 발을 무게중심 아래로, 양발 간격 넓힘(`LEG_X`). 발목은 가늘게 좁혀 무다리 느낌을 덜어냄.
-- 이후 — 팔을 약 1.4배 굵게 하고 손·손톱 3개 추가, 꼬리 뿌리를 굵게 하고 길이를 약 15% 줄임.
-- 이후 — 뼈대(18개)와 기본 동작 3개(대기·달리기·박치기) 추가: `ram_rigged.glb`.
-- 이후 — 돌머리의 가장 넓은 높이를 테두리 아래로: 테두리부터 위로 갈수록 좁아지기만 해서 버섯처럼 얹힌 느낌을 없앰 (얼굴·폭은 그대로), 꼭대기는 머리보다 살짝만 높게 낮춤.
-- 이후 — 돌머리 경계 무늬를 체크포인트 1과 같게: 색칠 기준만 체크포인트 1의 돌머리 타원체(`PAINT_DOME_*`)로, 모양은 지금 것 그대로.
-- 이후 — 돌머리 기본 색을 잿빛(0.60, 0.58, 0.55)으로. 동작 미리보기 GIF 추가.
-- 이후 — 동작 11개로 확장: 걷기, 박치기 3종(내리찍기·올려치기·후려치기), 꼬리 패링, 백스텝, 대시, 사이드 대시.
+| 단계 | 내용 |
+|---|---|
+| 체크포인트 1 | 첫 주인공 모델: 돌머리 한 덩어리, 반달 동심원 눈, 짧은 주둥이와 입선, 차콜 바탕 + 빌드 색 슬롯 (`docs/renders/checkpoint_01/`) |
+| 비율 | 주둥이 가시 제거, 머리 쪽 1.3배(`HEAD_SCALE`), 기둥형 다리 + 가는 발목 + 넓은 발(`LEG_X`), 팔 굵게, 꼬리 짧고 굵게 |
+| 돌머리 | 테두리부터 위로 좁아지게, 꼭대기 낮춤, 체크포인트 1의 톱니 경계 무늬 유지(`PAINT_DOME_*`), 잿빛 |
+| 뼈대·동작 | 뼈 18개, 동작 11개 (`ram_rigged.glb`), 동작 GIF |
+| 조력자 | 두루미·양·메기·날치 첫 디자인 |
+
+자세한 변경은 `git log` 에 있다.
