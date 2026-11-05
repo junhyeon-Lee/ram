@@ -1,6 +1,6 @@
 # Ram — 작업 안내
 
-박치기 공룡 3D 로그라이크(Godot 4, Windows). 설계 결정은 `docs/design.md`, 실행 방법은 `README.md`.
+박치기 공룡 3D 로그라이크(Godot 4, Windows). 설계 결정은 `docs/design.md`, 실행 방법은 `README.md`, 이어받을 일은 `docs/handoff.md`.
 
 ## 모델 작업 순서
 
