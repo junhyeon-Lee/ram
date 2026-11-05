@@ -159,26 +159,19 @@ def to_lowpoly(obj, target_tris):
 SLOTS = ["body", "accent", "belly", "dome"]
 
 
-def dome_dist(c):
-    d = c - DOME_C
-    return (d.x / DOME_R.x) ** 2 + (d.y / DOME_R.y) ** 2 + (d.z / DOME_R.z) ** 2
+# 색칠 기준 타원체: 체크포인트 1의 돌머리 (모양은 DOME_* 를 쓰고, 색 경계 무늬만 이것으로 정한다)
+PAINT_DOME_C = Vector(H((0, -0.64, 1.10)))
+PAINT_DOME_R = Vector(HS((0.18, 0.24, 0.16)))
+
+
+def paint_dome_dist(c):
+    d = c - PAINT_DOME_C
+    return (d.x / PAINT_DOME_R.x) ** 2 + (d.y / PAINT_DOME_R.y) ** 2 + (d.z / PAINT_DOME_R.z) ** 2
 
 
 def dome_rim_z(y):
     # 돌머리 테두리 높이: 앞(이마)은 눈 바로 위까지 내려오고 뒤는 조금 높다
     return H((0, 0, 1.035))[2] + (y - DOME_C.y) * 0.18  # 기존 테두리 높이 그대로
-
-
-RIM_TEETH = 14            # 돌머리 둘레의 톱니 수 (면이 커서 적고 크게 해야 보인다)
-RIM_TOOTH_DEPTH = HS(0.085)  # 톱니 길이
-RIM_PAINT_LIFT = HS(0.06)    # 색 경계(톱니 사이)를 테두리보다 이만큼 위에: 톱니 끝이 테두리 근처에서 멈춰 눈 위에 어두운 띠가 남는다
-
-
-def rim_tooth(c):
-    """돌머리 둘레 각도에 따른 톱니 깊이: 톱니 끝에서 RIM_TOOTH_DEPTH, 톱니 사이에서 0 (삼각파)."""
-    d = c - DOME_C
-    t = (math.atan2(d.x, d.y) / (2 * math.pi) * RIM_TEETH) % 1.0
-    return RIM_TOOTH_DEPTH * (1.0 - abs(2.0 * t - 1.0))
 
 
 def paint_body(body, mats):
@@ -187,8 +180,10 @@ def paint_body(body, mats):
     for p in body.data.polygons:
         c, n = p.center, p.normal
         idx = 0
-        # 돌머리: 테두리 위 + 테두리를 따라 아래로 삐죽 내려오는 톱니 (경계가 삐죽삐죽하게)
-        if dome_dist(c) < 1.35 and c.z > dome_rim_z(c.y) + RIM_PAINT_LIFT - rim_tooth(c):
+        # 돌머리 색: 칠하는 기준은 체크포인트 1의 돌머리 타원체(PAINT_DOME_*).
+        # 지금 모양의 겉면이 그 타원체를 빠져나가는 선을 따라 삐죽삐죽한 경계가 생겨,
+        # 눈 위 어두운 띠와 돌머리가 무늬처럼 나뉜다.
+        if paint_dome_dist(c) < 1.15 and c.z > dome_rim_z(c.y):
             idx = 3
         elif n.z < -0.3 and -1.2 < c.y < 0.45 and c.z > 0.35:
             idx = 2
