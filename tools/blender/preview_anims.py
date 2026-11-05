@@ -47,7 +47,7 @@ def setup(sc):
     cam = bpy.data.objects.new("Cam", bpy.data.cameras.new("Cam"))
     sc.collection.objects.link(cam)
     sc.camera = cam
-    cam.data.lens = 62
+    cam.data.lens = 48  # 대시(앞으로 1m)·백스텝까지 화면에 들어오게
     cam.location = Vector((-3.6, -2.4, 1.5))
     cam.rotation_euler = (Vector((0, -0.15, 0.7)) - cam.location).to_track_quat("-Z", "Y").to_euler()
 

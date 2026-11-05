@@ -36,7 +36,20 @@ python -m venv .venv
 .venv/bin/python tools/blender/rig_dino.py out/dino.blend out
 ```
 
-`out/ram_rigged.glb`에 뼈대 18개와 동작 3개가 들어간다: `Idle-loop`(대기), `Run-loop`(달리기), `Headbutt`(박치기).
+`out/ram_rigged.glb`에 뼈대 18개와 동작 11개가 들어간다.
+
+| 동작 | 내용 |
+|---|---|
+| `Idle-loop` · `Walk-loop` · `Run-loop` | 대기 · 걷기 · 달리기 |
+| `Attack_Slam` | 머리를 위로 들었다가 내리찍기 |
+| `Attack_Uppercut` | 낮게 숙였다가 아래에서 위로 올려치기 |
+| `Attack_Hook` | 오른쪽 위로 들었다가 왼쪽 아래로 후려치기 |
+| `Parry_Tail` | 한 바퀴 돌며 꼬리로 쓸어내기 |
+| `Backstep` | 앞다리로 밀며 뒤로 0.65m |
+| `Dash` | 뒷다리로 차며 앞으로 1.0m |
+| `Dash_Left` · `Dash_Right` | 옆으로 0.8m |
+
+대시·백스텝·패링은 `root` 뼈가 실제로 움직인다(Godot 에서 root motion 으로 쓸 수 있다).
 이름 끝의 `-loop`는 Godot가 반복 재생으로 가져오라는 표시다.
 
 동작 미리보기 GIF (Pillow 필요):
@@ -46,7 +59,7 @@ python -m venv .venv
 .venv/bin/python tools/blender/preview_anims.py out/ram_rigged.blend out
 ```
 
-최신 GIF: `docs/renders/latest/anim_idle.gif`, `anim_run.gif`, `anim_headbutt.gif`
+최신 GIF: `docs/renders/latest/anim_*.gif` (동작마다 하나)
 
 ### 색 바꾸기
 
@@ -63,3 +76,4 @@ python -m venv .venv
 - 이후 — 돌머리의 가장 넓은 높이를 테두리 아래로: 테두리부터 위로 갈수록 좁아지기만 해서 버섯처럼 얹힌 느낌을 없앰 (얼굴·폭은 그대로), 꼭대기는 머리보다 살짝만 높게 낮춤.
 - 이후 — 돌머리 경계 무늬를 체크포인트 1과 같게: 색칠 기준만 체크포인트 1의 돌머리 타원체(`PAINT_DOME_*`)로, 모양은 지금 것 그대로.
 - 이후 — 돌머리 기본 색을 잿빛(0.60, 0.58, 0.55)으로. 동작 미리보기 GIF 추가.
+- 이후 — 동작 11개로 확장: 걷기, 박치기 3종(내리찍기·올려치기·후려치기), 꼬리 패링, 백스텝, 대시, 사이드 대시.
