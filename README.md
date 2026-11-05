@@ -27,6 +27,8 @@
 
 ## Godot 에서 실행하기
 
+Windows 에서는 `tools/setup_windows.ps1` 내용을 PowerShell 에 붙여 넣으면 Git·Godot 4.7.2 설치, 저장소 받기, 에디터 열기까지 한 번에 된다. 손으로 하려면:
+
 1. Godot **4.7** (표준판, .NET 아님)을 받는다: https://godotengine.org/download
 2. Godot 를 열고 **Import** → 이 저장소 폴더의 `project.godot` 를 고른다. 처음 열 때 모델을 가져오느라 잠깐 걸린다.
 3. **F5** (또는 오른쪽 위 ▶) 로 실행한다. 시험용 층이 뜬다.
