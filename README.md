@@ -19,10 +19,43 @@
 | `tools/blender/rig_dino.py` | 모델에 뼈대·가중치·기본 동작을 넣는 스크립트 |
 | `tools/blender/preview_anims.py` | 동작마다 미리보기 GIF 를 만드는 스크립트 |
 | `tools/blender/build_helpers.py` | 조력자 4인 첫 디자인 모델 스크립트 |
+| `project.godot`, `game/` | Godot 4.7 프로젝트 (저장소 루트가 프로젝트 루트, `docs/`·`tools/` 는 `.gdignore` 로 제외) |
 | `assets/characters/ram/` | 주인공 모델. `dino.*` 정지 모델, `ram_rigged.*` 뼈대·동작 포함 (Godot 에는 `ram_rigged.glb`) |
 | `assets/characters/helpers/` | 조력자 모델 (`crane`·`sheep`·`catfish`·`flyfish` .glb/.blend) |
 | `docs/design.md` | 확정한 설계 결정 (스토리·하루의 흐름과 성장·건물·조작·카메라·디자인 규칙·산재비스탄·빌드와 조력자) |
 | `docs/renders/` | 렌더 사진: `latest/` 최신 · `checkpoint_01/` 첫 모델 · `helpers/` 조력자 · `explorations/` 비교 시안 |
+
+## Godot 에서 실행하기
+
+1. Godot **4.7** (표준판, .NET 아님)을 받는다: https://godotengine.org/download
+2. Godot 를 열고 **Import** → 이 저장소 폴더의 `project.godot` 를 고른다. 처음 열 때 모델을 가져오느라 잠깐 걸린다.
+3. **F5** (또는 오른쪽 위 ▶) 로 실행한다. 시험용 층이 뜬다.
+
+| 키 | 동작 |
+|---|---|
+| 방향키 위·아래 | 앞뒤 이동 |
+| 방향키 좌·우 | 몸 돌리기 (카메라가 살짝 늦게 같이 돈다) |
+| Space | 박치기 (책상을 날려 버린다, 세 번 맞으면 부서짐) |
+| E | 꼬리 패링 (한 바퀴 돈다) |
+| Shift | 백스텝 |
+| R | 산재비스탄: 3초 동안 주변과 9시 시계가 느려진다. 쓸 때마다 체력 5 감소 |
+| F5 (게임 중) | 판 다시 시작 |
+
+8:50 에 도착해 9:00 (실제 5분) 전에 앞쪽 초록 계단 문에 닿으면 성공, 못 가면 '끌려감'.
+
+![시험용 층](docs/renders/latest/godot_test_floor.png)
+
+플레이 녹화: [`docs/renders/latest/godot_test_floor.mp4`](docs/renders/latest/godot_test_floor.mp4)
+
+| 파일 | 내용 |
+|---|---|
+| `game/main.gd` | 시험용 층(방·책상·계단 문·HUD)과 판 시작·끝 |
+| `game/player/player.gd` | Ram 조작, 동작 재생, root motion(대시·백스텝·패링), 박치기 판정, 산재비스탄 |
+| `game/camera/follow_camera.gd` | 등 뒤에서 살짝 늦게 따라 도는 카메라 |
+| `game/hud/work_clock.gd` | 9시 마감 시계 (2배속, 산재비스탄 중 같이 느려짐) |
+| `game/props/breakable.gd` | 박치기로 날아가는 집기 |
+| `tools/godot/setup_input.gd` | 키 배치를 `project.godot` 에 써 넣는 스크립트 |
+| `tools/godot/smoke_test.gd` | 헤드리스 자동 점검: `godot --headless --path . --fixed-fps 120 --script tools/godot/smoke_test.gd` |
 
 ## 주인공 모델 다시 만들기
 
@@ -93,5 +126,6 @@ python -m venv .venv
 | 뼈대·동작 | 뼈 18개, 동작 11개 (`ram_rigged.glb`), 동작 GIF |
 | 조력자 | 두루미·양·메기·날치 첫 디자인 |
 | 기획 | 스토리 'Ram은 쉬고 싶다'(회사 편), 하루의 흐름과 두 갈래 성장, 시계 2배속, 9층 인사팀 따귀 이벤트, 산재비스탄, 사이버웨어 개조 (`docs/design.md`) |
+| Godot | 4.7 프로젝트, 시험용 층에서 이동·박치기·패링·백스텝·산재비스탄·9시 시계, 헤드리스 자동 점검 |
 
 자세한 변경은 `git log` 에 있다.

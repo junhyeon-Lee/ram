@@ -14,6 +14,15 @@ python -m venv .venv && .venv/bin/pip install bpy pillow   # bpy 는 Python 3.13
 
 모델을 바꾸면 `rig_dino.py` 도 다시 돌려 `assets/characters/ram/` 의 `dino.*` 와 `ram_rigged.*` 를 함께 갱신한다(서로 어긋나면 안 된다). `docs/renders/latest/` 렌더도 같이 바꾼다.
 
+## Godot 작업
+
+- Godot 4.7. 저장소 루트가 프로젝트 루트다. `docs/`·`tools/` 는 `.gdignore` 로 제외된다.
+- 게임 코드를 바꾸면 헤드리스 점검을 돌려 `SMOKE TEST: PASS` 를 확인한다:
+  `godot --headless --path . --fixed-fps 120 --script tools/godot/smoke_test.gd`
+- 키 배치를 바꾸면 `tools/godot/setup_input.gd` 를 고치고 다시 돌린다(`project.godot` 를 손으로 고치지 않는다).
+- Ram 모델은 +Z 를 보고 들어온다(플레이어에서 180° 돌림). 동작 속 root 뼈 회전은 Godot root motion 회전값 대신 `_root_yaw()` 로 읽는다(180° 에서 값이 튐).
+- `.import`·`.uid` 파일은 커밋한다. `.godot/` 는 커밋하지 않는다.
+
 ## 디자인을 바꿀 때
 
 - `docs/design.md` 의 "주인공 디자인 규칙"을 먼저 읽는다. 돌머리·눈은 사용자와 여러 번 맞춘 결과다.
