@@ -35,10 +35,25 @@ PALETTE = {
     "lid":    (0.05, 0.05, 0.06),   # 눈 테두리
 }
 
+# 머리 배율: 머리·주둥이·돌머리·눈·입선·돌기를 목 끝(HEAD_PIVOT) 기준으로 함께 키운다
+HEAD_PIVOT = Vector((0, -0.44, 0.97))
+HEAD_SCALE = 1.3
+
+
+def H(p):
+    """머리 쪽 좌표: 목 끝 기준으로 HEAD_SCALE 만큼 키운 위치."""
+    return tuple(HEAD_PIVOT + (Vector(p) - HEAD_PIVOT) * HEAD_SCALE)
+
+
+def HS(v):
+    """머리 쪽 크기(반지름·길이)."""
+    return tuple(x * HEAD_SCALE for x in v) if isinstance(v, (tuple, list)) else v * HEAD_SCALE
+
+
 # 돌머리 타원체 (몸과 함께 리메시된다)
-DOME_C = Vector((0, -0.64, 1.10))
+DOME_C = Vector(H((0, -0.64, 1.10)))
 # 머리보다 좁고 짧게: 모자처럼 얹히지 않고 정수리가 솟은 모양
-DOME_R = Vector((0.18, 0.24, 0.16))
+DOME_R = Vector(HS((0.18, 0.24, 0.16)))
 
 
 def srgb_to_linear(c):
@@ -79,20 +94,20 @@ def build_body():
     blob((0, 0.00, 0.78), (0.26, 0.38, 0.28), s)   # 몸통
     blob((0, -0.05, 0.68), (0.23, 0.28, 0.22), s)  # 배
     blob((0, 0.28, 0.82), (0.23, 0.25, 0.24), s)   # 엉덩이
-    chain([(0, -0.26, 0.88), (0, -0.44, 0.97)], [(0.16, 0.16, 0.17), (0.16, 0.15, 0.17)], s)  # 목
-    blob((0, -0.62, 1.00), (0.20, 0.23, 0.19), s)  # 머리
+    chain([(0, -0.26, 0.88), (0, -0.44, 0.97)], [(0.17, 0.17, 0.18), (0.19, 0.17, 0.20)], s)  # 목 (큰 머리를 받치게 굵게)
+    blob(H((0, -0.62, 1.00)), HS((0.20, 0.23, 0.19)), s)  # 머리
     # 주둥이: 넓은 뿌리 + 좁은 코끝 → 앞으로 갈수록 가늘어지는 뭉툭한 코
-    blob((0, -0.76, 0.93), (0.14, 0.09, 0.10), s)  # 주둥이 뿌리
-    blob((0, -0.84, 0.90), (0.09, 0.06, 0.07), s)  # 코끝
+    blob(H((0, -0.76, 0.93)), HS((0.14, 0.09, 0.10)), s)  # 주둥이 뿌리
+    blob(H((0, -0.84, 0.90)), HS((0.09, 0.06, 0.07)), s)  # 코끝
     blob(tuple(DOME_C), tuple(DOME_R), s)          # 돌머리 (머리와 한 덩어리)
     chain([(0, 0.45, 0.86), (0, 0.80, 0.90), (0, 1.12, 0.87), (0, 1.40, 0.81)],
           [(0.15, 0.15, 0.14), (0.10, 0.10, 0.10), (0.06, 0.06, 0.06), (0.025, 0.03, 0.025)], s)
     for side in (-1, 1):
-        x = 0.17 * side
-        blob((x, 0.12, 0.62), (0.11, 0.17, 0.20), s)  # 허벅지
+        x = 0.18 * side
+        blob((x, 0.12, 0.62), (0.15, 0.20, 0.24), s)  # 허벅지 (굵게)
         chain([(x, 0.16, 0.48), (x * 1.06, 0.25, 0.25), (x * 1.06, 0.11, 0.07)],
-              [(0.075, 0.075, 0.075), (0.05, 0.05, 0.05), (0.045, 0.045, 0.045)], s)
-        blob((x * 1.06, 0.00, 0.04), (0.065, 0.11, 0.035), s)  # 발
+              [(0.10, 0.10, 0.10), (0.07, 0.07, 0.07), (0.062, 0.062, 0.062)], s)
+        blob((x * 1.06, 0.00, 0.045), (0.085, 0.13, 0.045), s)  # 발
         chain([(0.19 * side, -0.24, 0.72), (0.23 * side, -0.33, 0.58), (0.22 * side, -0.42, 0.52)],
               [(0.045, 0.045, 0.045), (0.032, 0.032, 0.032), (0.028, 0.028, 0.028)], s)
 
@@ -142,7 +157,7 @@ def dome_dist(c):
 
 def dome_rim_z(y):
     # 돌머리 테두리 높이: 앞(이마)은 눈 바로 위까지 내려오고 뒤는 조금 높다
-    return DOME_C.z - 0.065 + (y - DOME_C.y) * 0.18
+    return DOME_C.z - HS(0.065) + (y - DOME_C.y) * 0.18
 
 
 def paint_body(body, mats):
@@ -154,7 +169,7 @@ def paint_body(body, mats):
         # 돌머리 겉면에 가까운 면만 (주둥이 윗면까지 번지지 않게)
         if dome_dist(c) < 1.15 and c.z > dome_rim_z(c.y):
             idx = 3
-        elif n.z < -0.3 and -0.95 < c.y < 0.45 and c.z > 0.35:
+        elif n.z < -0.3 and -1.2 < c.y < 0.45 and c.z > 0.35:
             idx = 2
         elif n.z > 0.45 and -0.30 < c.y < 1.15 and c.z > 0.75:
             # 등 줄무늬: 굵은 띠 몇 개 (빌드 색)
@@ -233,7 +248,7 @@ def half_disc(name, rx, ry, z0, z1, seg=14, dx=0.0):
 def build_eye(body, side, parts):
     """반달 눈: 위쪽은 곧은 선(앞이 조금 낮게), 아래쪽은 둥글다. 테두리·흰자·홍채·동공이 같은 중심의 반달로 겹친다.
     단순하지만 단단한 인상. 하이라이트는 넣지 않는다."""
-    hit, nrm = surface_hit(body, (0.6 * side, -0.95, 0.97), (0.0, -0.66, 0.97))
+    hit, nrm = surface_hit(body, H((0.6 * side, -0.95, 0.97)), H((0.0, -0.66, 0.97)))
     # 바깥·약간 앞을 보게 (정면에서도 눈이 보이도록)
     out = (nrm * 0.55 + Vector((side, -0.75, 0.05)).normalized() * 0.45).normalized()
     fwd = Vector((0, -1, 0))
@@ -242,7 +257,7 @@ def build_eye(body, side, parts):
     if up.z < 0:
         up = -up
 
-    RX, RY = 0.066, 0.066        # 반달 크기 (RX: 곧은 선에서 둥근 끝까지 = 세로, RY: 곧은 선 반길이 = 가로)
+    RX, RY = HS(0.066), HS(0.066)       # 반달 크기 (RX: 곧은 선에서 둥근 끝까지 = 세로, RY: 곧은 선 반길이 = 가로)
     # 곧은 선이 위로 오도록 60° 돌린다(옆에서 볼 때 반시계). 곧은 윗선은 앞쪽이 조금 낮아 강한 인상
     TILT = math.radians(-60)
     xa = fwd * math.cos(TILT) - up * math.sin(TILT)
@@ -266,8 +281,8 @@ def build_eye(body, side, parts):
     layers = [("lid", 1.00, 0.010), ("sclera", 0.82, 0.014), ("iris", 0.60, 0.018), ("pupil", 0.34, 0.022)]
     for slot, k, h in layers:
         # 안쪽 층은 살짝 뒤로: 곧은 앞선에도 검은 테두리 선이 보이게
-        dx = 0.0 if slot == "lid" else -0.007
-        parts[slot].append(put(half_disc(f"Eye_{slot}{side}", RX * k, RY * k, -0.03, h, dx=dx)))
+        dx = 0.0 if slot == "lid" else HS(-0.007)
+        parts[slot].append(put(half_disc(f"Eye_{slot}{side}", RX * k, RY * k, HS(-0.03), HS(h), dx=dx)))
 
 
 def build_parts(body):
@@ -279,21 +294,21 @@ def build_parts(body):
         z = dome_rim_z(y) - 0.005
         origin = (0.6 * math.sin(a), DOME_C.y + 0.6 * math.cos(a), z)
         hit, nrm = surface_hit(body, origin, (0, DOME_C.y, z))
-        parts["accent"].append(cone(f"Knob{i}", hit - nrm * 0.012, 0.042, 0.115, nrm + Vector((0, 0, 0.5)), verts=5))
+        parts["accent"].append(cone(f"Knob{i}", hit - nrm * HS(0.012), HS(0.042), HS(0.115), nrm + Vector((0, 0, 0.5)), verts=5))
     # 입선: 코끝 아래에서 뒤로 짧게 (눈 테두리와 같은 색)
     for s in (-1, 1):
         pts = []
         for y, z in [(-0.875, 0.875), (-0.83, 0.865), (-0.78, 0.86), (-0.73, 0.862)]:
-            hit, nrm = surface_hit(body, (0.6 * s, y, z), (0, y, z))
+            hit, nrm = surface_hit(body, H((0.6 * s, y, z)), H((0, y, z)))
             pts.append((hit, nrm))
         for k in range(len(pts) - 1):
             (a, na), (b, nb) = pts[k], pts[k + 1]
-            parts["lid"].append(stroke(f"Mouth{s}{k}", a, b, (na + nb).normalized(), 0.009))
+            parts["lid"].append(stroke(f"Mouth{s}{k}", a, b, (na + nb).normalized(), HS(0.009)))
     # 발톱·손톱
     for s in (-1, 1):
-        fx = 0.18 * s
-        for k, dx in enumerate((-0.05, 0.0, 0.05)):
-            parts["claw"].append(cone(f"Toe{s}{k}", (fx + dx * s, -0.10, 0.03), 0.025, 0.07, (dx, -1, -0.15), verts=4))
+        fx = 0.18 * 1.06 * s
+        for k, dx in enumerate((-0.06, 0.0, 0.06)):
+            parts["claw"].append(cone(f"Toe{s}{k}", (fx + dx * s, -0.12, 0.035), 0.03, 0.08, (dx, -1, -0.15), verts=4))
         for k, dx in enumerate((-0.015, 0.015)):
             parts["claw"].append(cone(f"Hand{s}{k}", (0.23 * s + dx, -0.44, 0.49), 0.012, 0.04, (0, -0.6, -1), verts=4))
     for s in (-1, 1):
@@ -365,7 +380,7 @@ VIEWS = {
     "side":    ((0, 0.05, 0.72), (-4.4, 0.25, 0.95), 50),
     "front":   ((0, 0.05, 0.72), (0.0, -4.4, 1.0), 50),
     "back34":  ((0, 0.05, 0.72), (2.8, 3.6, 1.8), 50),
-    "face":    ((0, -0.72, 1.02), (-0.95, -1.75, 1.20), 60),
+    "face":    ((0, -0.80, 1.04), (-1.20, -2.05, 1.28), 60),
 }
 
 
