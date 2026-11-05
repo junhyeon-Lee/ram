@@ -54,9 +54,10 @@ def HS(v):
 LEG_X = 0.20
 
 # 돌머리 타원체 (몸과 함께 리메시된다)
-DOME_C = Vector(H((0, -0.64, 1.10)))
-# 머리보다 좁고 짧게: 모자처럼 얹히지 않고 정수리가 솟은 모양
-DOME_R = Vector(HS((0.18, 0.24, 0.16)))
+# 머리와 같은 중심·같은 앞뒤/좌우 폭으로 두고 위로만 높게: 옆·앞·뒤는 머리 겉면과 그대로 이어지고
+# 정수리만 두껍게 솟는다 (턱이 생기거나 이마가 앞으로 불룩 튀어나오지 않게)
+DOME_C = Vector(H((0, -0.61, 1.00)))
+DOME_R = Vector(HS((0.20, 0.225, 0.235)))
 
 
 def srgb_to_linear(c):
@@ -164,7 +165,7 @@ def dome_dist(c):
 
 def dome_rim_z(y):
     # 돌머리 테두리 높이: 앞(이마)은 눈 바로 위까지 내려오고 뒤는 조금 높다
-    return DOME_C.z - HS(0.065) + (y - DOME_C.y) * 0.18
+    return H((0, 0, 1.035))[2] + (y - DOME_C.y) * 0.18
 
 
 def paint_body(body, mats):
