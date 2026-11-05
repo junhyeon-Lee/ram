@@ -7,7 +7,7 @@
 만드는 법: 몸통·목·머리·돌머리·꼬리·다리를 타원체로 겹쳐 놓고 복셀 리메시로
 한 덩어리로 녹인 뒤 면 수를 줄여(Decimate) 각진 로우폴리 느낌을 낸다.
 돌머리는 몸과 한 덩어리이고 색(재질)으로만 구분한다.
-눈(반달 동심원)·혹·발톱은 따로 만든 조각이며, 눈과 혹은 몸 겉면을 레이캐스트해 붙인다.
+눈(반달 동심원)·돌머리 돌기·발톱은 따로 만든 조각이며, 눈과 혹은 몸 겉면을 레이캐스트해 붙인다.
 
 색: 바탕은 회색·검정. "accent" 슬롯(등 줄무늬·혹)은 빌드에 따라 게임에서 바꿀 색이다.
 """
@@ -280,12 +280,6 @@ def build_parts(body):
         origin = (0.6 * math.sin(a), DOME_C.y + 0.6 * math.cos(a), z)
         hit, nrm = surface_hit(body, origin, (0, DOME_C.y, z))
         parts["accent"].append(cone(f"Knob{i}", hit - nrm * 0.012, 0.042, 0.115, nrm + Vector((0, 0, 0.5)), verts=5))
-    # 주둥이 옆 작은 혹
-    for s in (-1, 1):
-        # 주둥이 윗옆면에: 눈과도, 아래 입선과도 겹치지 않게
-        for j, (y, z) in enumerate([(-0.82, 0.95), (-0.86, 0.92)]):
-            hit, nrm = surface_hit(body, (0.6 * s, y, z), (0, y, z))
-            parts["accent"].append(cone(f"Snout{s}{j}", hit - nrm * 0.008, 0.028, 0.065, nrm + Vector((0, 0, 0.3)), verts=4))
     # 입선: 코끝 아래에서 뒤로 짧게 (눈 테두리와 같은 색)
     for s in (-1, 1):
         pts = []

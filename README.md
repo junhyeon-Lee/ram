@@ -13,7 +13,7 @@
 |---|---|
 | `tools/blender/build_dino.py` | 주인공 모델을 만드는 Blender 파이썬 스크립트 |
 | `assets/characters/ram/` | 스크립트로 만든 주인공 모델 (`dino.glb` → Godot, `dino.blend` → Blender) |
-| `docs/renders/` | 체크포인트별 렌더 사진 |
+| `docs/renders/` | 렌더 사진 (`latest/` 최신, `checkpoint_*/` 체크포인트 기록) |
 
 ## 주인공 모델 다시 만들기
 
@@ -35,3 +35,4 @@ python -m venv .venv
 ## 체크포인트
 
 - **checkpoint_01** — 첫 주인공 모델. 돌머리가 몸과 한 덩어리, 반달 동심원 눈, 짧은 주둥이와 입선, 차콜 바탕 + 빌드 색 슬롯. 삼각형 약 2,700개.
+- 이후 — 주둥이 가시 제거(돌기는 돌머리 테두리에만). 최신 렌더는 `docs/renders/latest/`.
