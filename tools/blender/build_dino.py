@@ -169,14 +169,26 @@ def dome_rim_z(y):
     return H((0, 0, 1.035))[2] + (y - DOME_C.y) * 0.18  # 기존 테두리 높이 그대로
 
 
+RIM_TEETH = 14            # 돌머리 둘레의 톱니 수 (면이 커서 적고 크게 해야 보인다)
+RIM_TOOTH_DEPTH = HS(0.085)  # 톱니 길이
+RIM_PAINT_LIFT = HS(0.06)    # 색 경계(톱니 사이)를 테두리보다 이만큼 위에: 톱니 끝이 테두리 근처에서 멈춰 눈 위에 어두운 띠가 남는다
+
+
+def rim_tooth(c):
+    """돌머리 둘레 각도에 따른 톱니 깊이: 톱니 끝에서 RIM_TOOTH_DEPTH, 톱니 사이에서 0 (삼각파)."""
+    d = c - DOME_C
+    t = (math.atan2(d.x, d.y) / (2 * math.pi) * RIM_TEETH) % 1.0
+    return RIM_TOOTH_DEPTH * (1.0 - abs(2.0 * t - 1.0))
+
+
 def paint_body(body, mats):
     for n in SLOTS:
         body.data.materials.append(mats[n])
     for p in body.data.polygons:
         c, n = p.center, p.normal
         idx = 0
-        # 돌머리 겉면에 가까운 면만 (주둥이 윗면까지 번지지 않게)
-        if dome_dist(c) < 1.15 and c.z > dome_rim_z(c.y):
+        # 돌머리: 테두리 위 + 테두리를 따라 아래로 삐죽 내려오는 톱니 (경계가 삐죽삐죽하게)
+        if dome_dist(c) < 1.35 and c.z > dome_rim_z(c.y) + RIM_PAINT_LIFT - rim_tooth(c):
             idx = 3
         elif n.z < -0.3 and -1.2 < c.y < 0.45 and c.z > 0.35:
             idx = 2
