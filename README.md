@@ -13,6 +13,7 @@
 |---|---|
 | `tools/blender/build_dino.py` | 주인공 모델을 만드는 Blender 파이썬 스크립트 |
 | `tools/blender/rig_dino.py` | 모델에 뼈대·가중치·기본 동작을 넣는 스크립트 |
+| `tools/blender/preview_anims.py` | 동작마다 미리보기 GIF 를 만드는 스크립트 |
 | `assets/characters/ram/` | 주인공 모델. `dino.*` 정지 모델, `ram_rigged.*` 뼈대·동작 포함 (Godot 에는 `ram_rigged.glb`) |
 | `docs/renders/` | 렌더 사진 (`latest/` 최신, `checkpoint_*/` 체크포인트 기록) |
 
@@ -38,6 +39,15 @@ python -m venv .venv
 `out/ram_rigged.glb`에 뼈대 18개와 동작 3개가 들어간다: `Idle-loop`(대기), `Run-loop`(달리기), `Headbutt`(박치기).
 이름 끝의 `-loop`는 Godot가 반복 재생으로 가져오라는 표시다.
 
+동작 미리보기 GIF (Pillow 필요):
+
+```bash
+.venv/bin/pip install pillow
+.venv/bin/python tools/blender/preview_anims.py out/ram_rigged.blend out
+```
+
+최신 GIF: `docs/renders/latest/anim_idle.gif`, `anim_run.gif`, `anim_headbutt.gif`
+
 ### 색 바꾸기
 
 스크립트 맨 위 `PALETTE`만 바꾸면 된다. `accent` 슬롯(등 줄무늬·돌기)은 빌드에 따라 게임에서 바꿀 색이다.
@@ -52,3 +62,4 @@ python -m venv .venv
 - 이후 — 뼈대(18개)와 기본 동작 3개(대기·달리기·박치기) 추가: `ram_rigged.glb`.
 - 이후 — 돌머리의 가장 넓은 높이를 테두리 아래로: 테두리부터 위로 갈수록 좁아지기만 해서 버섯처럼 얹힌 느낌을 없앰 (얼굴·폭은 그대로), 꼭대기는 머리보다 살짝만 높게 낮춤.
 - 이후 — 돌머리 경계 무늬를 체크포인트 1과 같게: 색칠 기준만 체크포인트 1의 돌머리 타원체(`PAINT_DOME_*`)로, 모양은 지금 것 그대로.
+- 이후 — 돌머리 기본 색을 잿빛(0.60, 0.58, 0.55)으로. 동작 미리보기 GIF 추가.
