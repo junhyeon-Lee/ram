@@ -434,4 +434,5 @@ def main():
         print(f"[dino] rendered {name}")
 
 
-main()
+if __name__ == "__main__":  # 다른 스크립트가 도구 함수만 가져다 쓸 수 있게
+    main()

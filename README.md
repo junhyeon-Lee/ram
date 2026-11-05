@@ -14,7 +14,9 @@
 | `tools/blender/build_dino.py` | 주인공 모델을 만드는 Blender 파이썬 스크립트 |
 | `tools/blender/rig_dino.py` | 모델에 뼈대·가중치·기본 동작을 넣는 스크립트 |
 | `tools/blender/preview_anims.py` | 동작마다 미리보기 GIF 를 만드는 스크립트 |
+| `tools/blender/build_helpers.py` | 조력자 4인 첫 디자인 모델 스크립트 |
 | `assets/characters/ram/` | 주인공 모델. `dino.*` 정지 모델, `ram_rigged.*` 뼈대·동작 포함 (Godot 에는 `ram_rigged.glb`) |
+| `assets/characters/helpers/` | 조력자 모델 (`crane`·`sheep`·`catfish`·`flyfish` .glb/.blend) |
 | `docs/renders/` | 렌더 사진 (`latest/` 최신, `checkpoint_*/` 체크포인트 기록) |
 
 ## 주인공 모델 다시 만들기
@@ -64,6 +66,17 @@ python -m venv .venv
 ### 색 바꾸기
 
 스크립트 맨 위 `PALETTE`만 바꾸면 된다. `accent` 슬롯(등 줄무늬·돌기)은 빌드에 따라 게임에서 바꿀 색이다.
+
+## 조력자 (빌드마다 하나, 합체 필살기)
+
+| 빌드 | 조력자 | 합체 필살기 | 성격 |
+|---|---|---|---|
+| 1 | 두루미 | 두루치기 | 공중·낙하 |
+| 2 | 양 | 양치기 | 방어·패링 |
+| 3 | 메기 | 메치기 | 잡기·던지기 |
+| 4 | 날치 | 날치기 | 속도·대시 |
+
+첫 디자인: `.venv/bin/python tools/blender/build_helpers.py out` → `docs/renders/helpers/lineup.png`(Ram 과 나란히)
 
 ## 체크포인트
 
