@@ -27,11 +27,13 @@
 
 ## Godot 에서 실행하기
 
-Windows 에서는 `tools/setup_windows.ps1` 내용을 PowerShell 에 붙여 넣으면 Git·Godot 4.7.2 설치, 저장소 받기, 에디터 열기까지 한 번에 된다. 손으로 하려면:
+Windows 에서는 `tools/setup_windows.ps1` 내용을 PowerShell 에 붙여 넣으면 Git·Godot 4.7.2 설치(바탕화면\Godot), 저장소 받기(바탕화면\home\ram), 에디터 열기까지 한 번에 된다. 손으로 하려면:
 
 1. Godot **4.7** (표준판, .NET 아님)을 받는다: https://godotengine.org/download
 2. Godot 를 열고 **Import** → 이 저장소 폴더의 `project.godot` 를 고른다. 처음 열 때 모델을 가져오느라 잠깐 걸린다.
-3. **F5** (또는 오른쪽 위 ▶) 로 실행한다. 시험용 층이 뜬다.
+3. **F5** (또는 오른쪽 위 ▶) 로 실행한다. 시험용 층이 뜬다. 에디터의 Game 탭 안에 뜨면 화면을 한 번 클릭해야 키가 먹는다.
+
+에디터 없이 게임만 띄우려면 저장소 폴더에서 `Godot_v4.7.2-stable_win64.exe --path .` (다른 세션이 올린 것까지 보려면 먼저 `git pull`).
 
 | 키 | 동작 |
 |---|---|
@@ -64,6 +66,7 @@ Windows 에서는 `tools/setup_windows.ps1` 내용을 PowerShell 에 붙여 넣�
 | `tools/godot/measure_feet.gd` | 동작별 발 속도·발목 높이 측정 (발 미끄러짐 맞춤용) |
 | `tools/godot/setup_input.gd` | 키 배치를 `project.godot` 에 써 넣는 스크립트 |
 | `tools/godot/smoke_test.gd` | 헤드리스 자동 점검: `godot --headless --path . --fixed-fps 120 --script tools/godot/smoke_test.gd` |
+| `tools/godot/capture_frame.gd` | 화면 확인: 창을 몇 초 띄워 N 프레임 뒤 화면을 PNG 로 저장. `godot --path . --resolution 960x540 --script tools/godot/capture_frame.gd -- out.png [프레임]` |
 
 ## 주인공 모델 다시 만들기
 
@@ -137,5 +140,7 @@ python -m venv .venv
 | 조력자 | 두루미·양·메기·날치 첫 디자인 |
 | 기획 | 스토리 'Ram은 쉬고 싶다'(회사 편), 하루의 흐름과 두 갈래 성장, 시계 2배속, 9층 인사팀 따귀 이벤트, 산재비스탄, 사이버웨어 개조 (`docs/design.md`) |
 | Godot | 4.7 프로젝트, 시험용 층에서 이동·박치기·패링·백스텝·산재비스탄·9시 시계, 헤드리스 자동 점검 |
+| 모션·전투 | 걷기·달리기 새로 짬, 박치기 4종 번갈아 쓰기, 공중제비 패링, 히트스톱·화면 흔들림, 콤보 1차 초안, 발 IK, 합성 효과음·파편 (`docs/design.md` '모션·전투 다듬기') |
+| Windows PC | 바탕화면\home\ram 에 저장소, Godot 4.7.2 세팅. 카메라가 벽에 막히면 벽 안쪽으로 당김(F5 첫 화면이 뒷벽 바깥면만 보이던 것), 화면 캡처 도구, 줄 끝 LF 고정(`.gitattributes`) |
 
 자세한 변경은 `git log` 에 있다.

@@ -17,6 +17,8 @@ python -m venv .venv && .venv/bin/pip install bpy pillow   # bpy 는 Python 3.13
 ## Godot 작업
 
 - Godot 4.7. 저장소 루트가 프로젝트 루트다. `docs/`·`tools/` 는 `.gdignore` 로 제외된다.
+- 클라우드·PC 세션이 같은 `main` 에 올린다. 작업을 시작하거나 게임을 띄우기 전에 `git pull` 한다.
+- 화면을 눈으로 확인할 때는 `tools/godot/capture_frame.gd` 로 캡처한다(헤드리스는 그리지 않는다).
 - 게임 코드를 바꾸면 헤드리스 점검을 돌려 `SMOKE TEST: PASS` 를 확인한다:
   `godot --headless --path . --fixed-fps 120 --script tools/godot/smoke_test.gd`
 - 키 배치를 바꾸면 `tools/godot/setup_input.gd` 를 고치고 다시 돌린다(`project.godot` 를 손으로 고치지 않는다).

@@ -1,0 +1,10 @@
+# 글자 파일은 어느 PC 에서든 LF 로 받는다.
+# Godot 는 .import·.tscn·project.godot 를 LF 로 다시 쓰므로, 윈도우에서 CRLF 로 받으면
+# 내용이 같아도 '바뀜'으로 잡힌다.
+* text=auto eol=lf
+
+*.glb   binary
+*.blend binary
+*.png   binary
+*.gif   binary
+*.mp4   binary
