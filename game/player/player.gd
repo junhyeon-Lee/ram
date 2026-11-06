@@ -1,6 +1,6 @@
 ## Ram — 플레이어 조작
 ## 방향키: 위·아래 앞뒤 이동, 좌우 몸 돌리기 (카메라가 따라 돈다)
-## Space 박치기 · E 꼬리 패링 · Shift 백스텝 · R 산재비스탄(시간 감속)
+## Space 박치기(4종 번갈아) · E 공중제비 꼬리 패링 · Shift 백스텝 · R 산재비스탄(시간 감속)
 class_name RamPlayer
 extends CharacterBody3D
 
@@ -14,11 +14,18 @@ const RAM_SCENE := preload("res://assets/characters/ram/ram_rigged.glb")
 @export var turn_speed_deg := 150.0   # 도/초
 @export var gravity := 20.0
 
-# 박치기 판정: 동작 시작 후 이 구간(초)에 머리 앞을 한 번 검사한다
-const HIT_WINDOW := Vector2(0.36, 0.52)
-const HIT_RADIUS := 0.75
-const HIT_REACH := 1.2
-const HIT_KICK := 6.5                 # 맞은 물체에 주는 속도 변화 (m/s, 무게와 상관없이)
+# 박치기 4종: Space 를 누를 때마다 넷이 겹치지 않게 번갈아 나온다 (docs/references/motion.md)
+const ATTACK_VARIANTS := ["Attack_RearSlam", "Attack_LowCharge", "Attack_FlankButt", "Attack_Shove"]
+# hits: 맞는 순간(동작 시작 후 초, Blender 프레임 기준 (f-1)/30), stop: 히트스톱(실제 초),
+# shake: 화면 흔들림 세기, kick: 맞은 물체에 주는 속도 변화(m/s, 무게와 상관없이), up: 위로 띄우는 비율(기본 0.35)
+const ATTACKS := {
+	"Attack_RearSlam": {"hits": [0.50], "stop": 0.10, "shake": 0.22, "kick": 8.0},
+	"Attack_LowCharge": {"hits": [0.333], "stop": 0.07, "shake": 0.15, "kick": 7.0},
+	"Attack_FlankButt": {"hits": [0.367], "stop": 0.06, "shake": 0.12, "kick": 6.5},
+	# 밀어붙이기는 날리지 않고 Ram 걸음(0.25m)만큼씩 밀고 간다: 약하게, 위로 띄우지 않게
+	"Attack_Shove": {"hits": [0.367, 0.633, 0.90], "stop": 0.035, "shake": 0.06, "kick": 1.6, "up": 0.0},
+}
+const HIT_RADIUS := 0.75              # 돌머리 둘레 판정 반지름
 
 # 산재비스탄: 주변(과 9시 시계)을 느리게, Ram 은 그대로. 쓸 때마다 체력이 조금 깎인다(산재).
 const SANJAE_SCALE := 0.3
@@ -33,8 +40,14 @@ var sanjae_gauge := 1.0
 var _sanjae_left := 0.0
 var _state := State.MOVE
 var _action_time := 0.0
-var _hit_done := false
+var _hits_done := 0                   # 이번 동작에서 지나간 '맞는 순간' 수
 var _current_action := ""
+var _attack_bag: Array = []
+var _last_attack := ""
+var _hitstop_left := 0.0
+var hitstop_count := 0                # 점검용: 히트스톱이 걸린 횟수
+var _skeleton: Skeleton3D
+var _head_bone := -1
 
 var _model: Node3D
 var _anim: AnimationPlayer
@@ -65,6 +78,8 @@ func _ready() -> void:
 	# 대시·백스텝·패링은 root 뼈가 움직인다 → 그 움직임을 몸(CharacterBody) 이동으로 옮긴다
 	_anim.root_motion_track = NodePath("RamRig/Skeleton3D:root")
 	_anim.animation_finished.connect(_on_animation_finished)
+	_skeleton = _model.find_child("Skeleton3D", true, false)
+	_head_bone = _skeleton.find_bone("head")
 	for anim_name in _anim.get_animation_list():
 		var a := _anim.get_animation(anim_name)
 		for i in a.get_track_count():
@@ -83,11 +98,19 @@ func _physics_process(delta: float) -> void:
 	else:
 		velocity.y = 0.0
 
-	match _state:
-		State.MOVE:
-			_move(real_delta)
-		State.ACTION:
-			_action(real_delta)
+	if _hitstop_left > 0.0:
+		# 히트스톱: 맞은 순간 Ram 의 동작·이동을 잠깐 멈춘다 (타격감)
+		_hitstop_left -= real_delta
+		velocity.x = 0.0
+		velocity.z = 0.0
+		if _hitstop_left <= 0.0:
+			_anim.speed_scale = _base_anim_speed()
+	else:
+		match _state:
+			State.MOVE:
+				_move(real_delta)
+			State.ACTION:
+				_action(real_delta)
 
 	# CharacterBody 는 엔진 delta 로 움직이므로, 느려진 만큼 속도를 키워 실제 속도를 지킨다
 	var v := velocity
@@ -114,7 +137,7 @@ func _move(real_delta: float) -> void:
 		_play("Idle")
 
 	if Input.is_action_just_pressed("attack"):
-		_start_action("Attack_Slam")
+		_start_action(_next_attack())
 	elif Input.is_action_just_pressed("backstep"):
 		_start_action("Backstep")
 	elif Input.is_action_just_pressed("guard"):
@@ -127,7 +150,7 @@ func _start_action(anim_name: String) -> void:
 	_state = State.ACTION
 	_current_action = anim_name
 	_action_time = 0.0
-	_hit_done = false
+	_hits_done = 0
 	_play(anim_name, 0.05)
 	_spin_prev = _root_yaw()
 	_visual_spin = 0.0
@@ -152,25 +175,58 @@ func _action(real_delta: float) -> void:
 	else:
 		rotate_y(dyaw)
 
-	if _current_action.begins_with("Attack") and not _hit_done \
-			and _action_time >= HIT_WINDOW.x and _action_time <= HIT_WINDOW.y:
-		_hit_done = true
-		_headbutt_hit()
+	var spec: Dictionary = ATTACKS.get(_current_action, {})
+	var hits: Array = spec.get("hits", [])
+	if _hits_done < hits.size() and _action_time >= hits[_hits_done]:
+		_hits_done += 1
+		_headbutt_hit(spec)
 
 
-func _headbutt_hit() -> void:
-	var forward := -global_transform.basis.z
-	var center := global_position + forward * HIT_REACH + Vector3.UP * 0.8
+## 다음 박치기: 네 가지를 섞어 한 바퀴씩 쓰고, 바로 앞과 같은 것은 연달아 나오지 않게 한다
+func _next_attack() -> String:
+	if _attack_bag.is_empty():
+		_attack_bag = ATTACK_VARIANTS.duplicate()
+		_attack_bag.shuffle()
+		if _attack_bag[0] == _last_attack:
+			_attack_bag.push_back(_attack_bag.pop_front())
+	_last_attack = _attack_bag.pop_front()
+	return _last_attack
+
+
+## 돌머리 둘레를 검사해 맞은 물체를 날린다. 하나라도 맞으면 히트스톱 + 화면 흔들림.
+func _headbutt_hit(spec: Dictionary) -> void:
+	var head := _skeleton.get_bone_global_pose(_head_bone)
+	# head 뼈는 목 끝에서 코끝 쪽으로 뻗는다. 돌머리 가운데는 뼈 시작점에서 조금 앞
+	var dome := _skeleton.global_transform * (head.origin + head.basis.y.normalized() * 0.25)
 	var query := PhysicsShapeQueryParameters3D.new()
 	var sphere := SphereShape3D.new()
 	sphere.radius = HIT_RADIUS
 	query.shape = sphere
-	query.transform = Transform3D(Basis(), center)
+	query.transform = Transform3D(Basis(), dome)
 	query.exclude = [get_rid()]
+	var kick: float = spec.get("kick", 6.5)
+	var landed := false
 	for hit in get_world_3d().direct_space_state.intersect_shape(query, 16):
 		var body: Object = hit.collider
 		if body.has_method("take_headbutt"):
-			body.take_headbutt(forward * HIT_KICK + Vector3.UP * HIT_KICK * 0.35)
+			# Ram 에서 맞은 물체 쪽으로 날린다 (옆구리 들이받기는 옆으로 날아간다)
+			var dir: Vector3 = (body.global_position - global_position) * Vector3(1, 0, 1)
+			if dir.length() < 0.01:
+				dir = -global_transform.basis.z
+			dir = dir.normalized()
+			body.take_headbutt(dir * kick + Vector3.UP * kick * float(spec.get("up", 0.35)))
+			landed = true
+	if landed:
+		_hitstop_left = spec.get("stop", 0.05)
+		hitstop_count += 1
+		_anim.speed_scale = 0.0
+		var cam := get_viewport().get_camera_3d()
+		if cam and cam.has_method("add_shake"):
+			cam.add_shake(spec.get("shake", 0.1))
+
+
+func _base_anim_speed() -> float:
+	return 1.0 / SANJAE_SCALE if _sanjae_left > 0.0 else 1.0
 
 
 func activate_sanjae() -> void:
@@ -179,7 +235,8 @@ func activate_sanjae() -> void:
 	sanjae_gauge = 0.0
 	_sanjae_left = SANJAE_REAL_SECONDS
 	Engine.time_scale = SANJAE_SCALE
-	_anim.speed_scale = 1.0 / SANJAE_SCALE
+	if _hitstop_left <= 0.0:
+		_anim.speed_scale = 1.0 / SANJAE_SCALE
 	hp = maxf(1.0, hp - SANJAE_HP_COST)   # 산재: 몸이 상한다 (끌려가지는 않음)
 	hp_changed.emit(hp)
 
@@ -190,7 +247,8 @@ func _update_sanjae(real_delta: float) -> void:
 		if _sanjae_left <= 0.0:
 			_sanjae_left = 0.0
 			Engine.time_scale = 1.0
-			_anim.speed_scale = 1.0
+			if _hitstop_left <= 0.0:
+				_anim.speed_scale = 1.0
 	else:
 		sanjae_gauge = minf(1.0, sanjae_gauge + SANJAE_RECHARGE * real_delta)
 	sanjae_changed.emit(sanjae_gauge, _sanjae_left > 0.0)

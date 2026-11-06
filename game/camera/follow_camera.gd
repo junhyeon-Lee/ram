@@ -12,6 +12,8 @@ extends Camera3D
 @export var wall_margin := 0.25       # 벽에 막히면 벽 안쪽으로 이만큼 띄운다
 
 var _yaw := 0.0
+var shake := 0.0                     # 화면 흔들림 세기 (m). 박치기가 맞으면 커졌다가 빠르게 줄어든다
+@export var shake_decay := 9.0
 
 
 func _ready() -> void:
@@ -31,6 +33,15 @@ func _physics_process(delta: float) -> void:
 	global_position = _clear_of_walls(next)
 	var fwd := Vector3(-sin(_yaw), 0.0, -cos(_yaw))
 	look_at(target.global_position + fwd * look_ahead + Vector3.UP * look_height)
+	# 흔들림은 카메라 자리를 바꾸지 않고 화면만 흔든다 (다음 프레임 위치 계산에 쌓이지 않게)
+	h_offset = randf_range(-1.0, 1.0) * shake
+	v_offset = randf_range(-1.0, 1.0) * shake
+	shake = maxf(0.0, shake - shake * shake_decay * real_delta - 0.002)
+
+
+## 박치기가 맞았을 때 부른다. 세기는 더해지되 너무 커지지 않게 한다.
+func add_shake(amount: float) -> void:
+	shake = minf(shake + amount, 0.35)
 
 
 func _desired_position() -> Vector3:

@@ -54,20 +54,65 @@ func _process(delta: float) -> bool:
 				_check(dyaw > deg_to_rad(55) and dyaw < deg_to_rad(95), "turn left 0.5s (~75 deg, got %.1f)" % rad_to_deg(dyaw))
 				p.global_rotation.y = _mark.yaw   # 다시 정면으로
 				_next()
-		3:  # 책상 바로 앞으로 옮겨 박치기
-			if _t < 0.05:
-				p.global_position = Vector3(0, 0.05, 11.0 - 7.0 + 1.6)
-				p.global_rotation.y = 0.0
-				_mark.desk = _main.get_node("Desk_0_1")
-				_mark.desk_pos = _mark.desk.global_position
-			elif _t < 0.1:
-				Input.action_press("attack")
-			elif _t < 0.15:
-				Input.action_release("attack")
-			elif _t > 1.4:
-				var desk: Breakable = _mark.desk
-				_check(desk.hits == 1, "headbutt hits the desk once (hits=%d)" % desk.hits)
-				_check(desk.global_position.distance_to(_mark.desk_pos) > 0.3, "desk is knocked away")
+		3:  # 박치기 4종: Space 로 하나 나오는지 보고, 넷을 차례로 새 책상에 쳐 본다
+			var variants: Array = RamPlayer.ATTACK_VARIANTS
+			var vi: int = _mark.get("vi", -1)
+			var cam3: FollowCamera = _main.get_node("Camera")
+			_mark.max_shake = maxf(_mark.get("max_shake", 0.0), cam3.shake)
+			if vi == -1:
+				# Space 를 누르면 네 가지 중 하나가 나온다
+				if _t < 0.05:
+					Input.action_press("attack")
+				elif not _mark.has("space_checked"):
+					_mark.space_checked = true
+					Input.action_release("attack")
+					_check(p._current_action in variants, "Space plays one of the 4 headbutts (%s)" % p._current_action)
+				elif p._state == 0 and _t > 0.3:
+					_mark.vi = 0
+					_mark.v_start = _t
+					_mark.hitstops = p.hitstop_count
+					_mark.results = []
+			elif vi < variants.size():
+				var t0: float = _mark.v_start
+				if _t - t0 < 0.02 and not _mark.has("v_spawned_%d" % vi):
+					_mark["v_spawned_%d" % vi] = true
+					p.global_position = Vector3(5.6, 0.05, 2.0)
+					p.global_rotation.y = 0.0
+					_main._breakable("TestDesk%d" % vi, Vector3(1.4, 0.9, 0.8), Vector3(5.6, 0.45, 0.5), Color(0.6, 0.5, 0.4))
+					_mark.desk = _main.get_node("TestDesk%d" % vi)
+					p._start_action(variants[vi])
+				elif _t - t0 > 0.2 and p._state == 0 and p._hitstop_left <= 0.0:
+					var d = _mark.desk
+					var hits: int = 99 if not is_instance_valid(d) else d.hits
+					_mark.results.append([variants[vi], hits])
+					if is_instance_valid(d):
+						d.queue_free()
+					_mark.vi = vi + 1
+					_mark.v_start = _t
+			else:
+				for r in _mark.results:
+					var want := "breaks the desk (3 hits)" if r[0] == "Attack_Shove" else "hits the desk"
+					var ok: bool = r[1] == 99 if r[0] == "Attack_Shove" else r[1] >= 1
+					_check(ok, "%s %s (hits=%s)" % [r[0], want, "broken" if r[1] == 99 else str(r[1])])
+				_check(p.hitstop_count - _mark.hitstops >= 4, "hitstop on every landed hit (%d)" % (p.hitstop_count - _mark.hitstops))
+				_check(_mark.max_shake > 0.05, "camera shakes on impact (max %.2f)" % _mark.max_shake)
+				# 번갈아 쓰기: 연달아 같은 박치기가 없고, 네 번마다 네 가지가 다 나온다
+				var seq: Array = []
+				p._attack_bag.clear()   # 한 바퀴 경계에 맞춰 검사
+				for i in 16:
+					seq.append(p._next_attack())
+				var no_repeat := true
+				for i in range(1, seq.size()):
+					if seq[i] == seq[i - 1]:
+						no_repeat = false
+				var all_four := true
+				for k in range(0, 16, 4):
+					var chunk := {}
+					for x in seq.slice(k, k + 4):
+						chunk[x] = true
+					if chunk.size() != 4:
+						all_four = false
+				_check(no_repeat and all_four, "attacks rotate: no back-to-back repeat, all 4 every 4 presses")
 				_next()
 		4:  # 백스텝: 뒤(+Z)로 약 0.65m
 			if _t < 0.05:
@@ -82,28 +127,35 @@ func _process(delta: float) -> bool:
 				var d: Vector3 = p.global_position - _mark.pos
 				_check(d.z > 0.45 and d.z < 0.85, "backstep moves back ~0.65m (dz=%.2f)" % d.z)
 				_next()
-		5:  # 꼬리 패링: 겉모습(모델)만 한 바퀴 돌고, 몸 방향과 카메라는 그대로
+		5:  # 공중제비 패링: 몸(골반)이 공중에서 한 바퀴 구르고, 몸 방향과 카메라는 그대로
 			var cam: Camera3D = _main.get_node("Camera")
+			var sk5: Skeleton3D = p._model.find_child("Skeleton3D", true, false)
+			var pel := sk5.get_bone_global_pose(sk5.find_bone("pelvis"))
 			if _t < 0.05:
 				_mark.yaw = p.global_rotation.y
 				_mark.cam_yaw = cam.global_rotation.y
+				_mark.pel_axis = pel.basis.y.normalized()
+				_mark.pel_y = pel.origin.y
+				_mark.min_dot = 1.0
+				_mark.max_lift = 0.0
+				_mark.max_body = 0.0
+				_mark.max_cam = 0.0
 			elif _t < 0.1:
 				Input.action_press("guard")
 			elif _t < 0.15:
 				Input.action_release("guard")
-			elif _t > 0.5 and not _mark.has("mid_model"):
-				_mark.mid_model = p._model.rotation.y
-				_mark.mid_body = p.global_rotation.y
-				_mark.mid_cam = cam.global_rotation.y
-			elif _t > 1.4:
-				var spin := absf(wrapf(_mark.mid_model - PI, -PI, PI))
-				var body := absf(wrapf(_mark.mid_body - _mark.yaw, -PI, PI))
-				var cam_turn := absf(wrapf(_mark.mid_cam - _mark.cam_yaw, -PI, PI))
-				var end := absf(wrapf(p._model.rotation.y - PI, -PI, PI))
-				_check(spin > deg_to_rad(60), "parry spins the model (mid %.0f deg)" % rad_to_deg(spin))
-				_check(body < deg_to_rad(1), "parry keeps body facing (%.2f deg)" % rad_to_deg(body))
-				_check(cam_turn < deg_to_rad(1), "camera does not turn during parry (%.2f deg)" % rad_to_deg(cam_turn))
-				_check(end < deg_to_rad(1), "model back to front after parry (%.2f deg)" % rad_to_deg(end))
+			elif _t < 1.3:
+				_mark.min_dot = minf(_mark.min_dot, pel.basis.y.normalized().dot(_mark.pel_axis))
+				_mark.max_lift = maxf(_mark.max_lift, pel.origin.y - _mark.pel_y)
+				_mark.max_body = maxf(_mark.max_body, absf(wrapf(p.global_rotation.y - _mark.yaw, -PI, PI)))
+				_mark.max_cam = maxf(_mark.max_cam, absf(wrapf(cam.global_rotation.y - _mark.cam_yaw, -PI, PI)))
+			else:
+				_check(_mark.min_dot < -0.5, "parry flips the body over (pelvis axis dot %.2f)" % _mark.min_dot)
+				_check(_mark.max_lift > 0.5, "parry jumps into the air (%.2fm)" % _mark.max_lift)
+				_check(_mark.max_body < deg_to_rad(1), "parry keeps body facing (%.2f deg)" % rad_to_deg(_mark.max_body))
+				_check(_mark.max_cam < deg_to_rad(1), "camera does not turn during parry (%.2f deg)" % rad_to_deg(_mark.max_cam))
+				var end_dot := pel.basis.y.normalized().dot(_mark.pel_axis)
+				_check(end_dot > 0.99, "lands upright after parry (dot %.3f)" % end_dot)
 				_next()
 		6:  # 산재비스탄: 엔진·시계가 느려지고, Ram 은 실제 속도 유지, 체력이 깎임
 			if not _mark.has("sanjae_pressed"):

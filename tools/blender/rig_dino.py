@@ -416,10 +416,127 @@ def side_dash_keys(direction):
             (18, {}, (0.8 * d, 0, 0))]
 
 
+
+# ---------------------------------------------------------------- 박치기 변형 4종 (docs/references/motion.md)
+# 게임에서는 Space 를 누를 때마다 넷이 겹치지 않게 번갈아 나온다. 맞는 순간 목·꼬리가 한 박자 늦게 출렁인다.
+# 공격이 끝난 자리에 그대로 서 있도록 root 는 맞은 위치에서 멈춘다 (뒤로 돌아오지 않음).
+def rear_slam_keys():
+    """1. 일어섰다 내리찍기: 큰뿔양처럼 뒷다리로 몸을 세웠다가 떨어지며 박는다. 꼬리가 땅을 받친다."""
+    crouch = merge(CROUCH, {"spine": [(X, 8)], "neck": [(X, -6)], "head": [(X, -8)], "tail.1": [(X, 6)]})
+    rear = {"pelvis": [(X, -22)], "thigh.L": [(X, 16)], "thigh.R": [(X, 16)], "shin.L": [(X, 10)], "shin.R": [(X, 10)],
+            "foot.L": [(X, -6)], "foot.R": [(X, -6)], "spine": [(X, -18)], "neck": [(X, -12)], "head": [(X, -24)],
+            "tail.1": [(X, -14)], "tail.2": [(X, -6)], "arm.L": [(X, -40)], "arm.R": [(X, -40)],
+            "forearm.L": [(X, -20)], "forearm.R": [(X, -20)]}
+    slam = {"pelvis": [(X, 10)], "thigh.L": [(X, -26)], "shin.L": [(X, 22)], "thigh.R": [(X, 14)], "shin.R": [(X, 12)],
+            "spine": [(X, 18)], "neck": [(X, 14)], "head": [(X, 22)], "tail.1": [(X, 18)], "tail.2": [(X, 12)],
+            "tail.3": [(X, 8)], "arm.L": [(X, 30)], "arm.R": [(X, 30)]}
+    quake = merge(slam, {"neck": [(X, 6)], "head": [(X, 6)], "tail.2": [(X, 10)], "tail.3": [(X, 14)]})
+    settle = merge(slam, {"neck": [(X, -4)], "head": [(X, -6)], "tail.2": [(X, -4)], "tail.3": [(X, -6)]})
+    return [(1, {}, (0, 0, 0)),
+            (6, crouch, (0, 0.02, -0.06)),        # 웅크려 힘 모으기
+            (12, rear, (0, 0.06, 0.14)),          # 뒷다리로 일어섬
+            (16, slam, (0, -0.35, -0.05)),        # 내리찍기 = 맞는 순간
+            (18, quake, (0, -0.37, -0.06)),       # 목·꼬리가 늦게 출렁
+            (21, settle, (0, -0.37, -0.03)),
+            (34, {}, (0, -0.37, 0))]
+
+
+def low_charge_keys():
+    """2. 낮은 돌진: 몸을 낮추고 달려들어 돌머리 앞면으로 정면을 받는다."""
+    load = merge(CROUCH, {"pelvis": [(X, 6)], "spine": [(X, 14)], "neck": [(X, -4)], "head": [(X, 16)],
+                          "tail.1": [(X, 4)]})
+    lunge = {"pelvis": [(X, 8)], "spine": [(X, 16)], "neck": [(X, 0)], "head": [(X, 18)],
+             "thigh.L": [(X, 30)], "thigh.R": [(X, 24)], "shin.L": [(X, 8)], "shin.R": [(X, 10)],
+             "foot.L": [(X, 22)], "foot.R": [(X, 20)], "tail.1": [(X, 10)], "tail.2": [(X, 6)],
+             "arm.L": [(X, 34)], "arm.R": [(X, 34)]}
+    hit = merge(lunge, {"thigh.L": [(X, -40)], "shin.L": [(X, 12)], "foot.L": [(X, 26)]})
+    quake = merge(hit, {"neck": [(X, 6)], "head": [(X, 8)], "tail.1": [(X, 6)], "tail.2": [(X, 10)], "tail.3": [(X, 14)]})
+    settle = merge(hit, {"neck": [(X, -3)], "head": [(X, -4)], "tail.3": [(X, -6)]})
+    return [(1, {}, (0, 0, 0)),
+            (5, load, (0, 0.05, -0.08)),
+            (9, lunge, (0, -0.45, -0.03)),
+            (11, hit, (0, -0.62, -0.04)),         # 맞는 순간
+            (13, quake, (0, -0.64, -0.05)),
+            (16, settle, (0, -0.64, -0.03)),
+            (27, {}, (0, -0.64, 0))]
+
+
+def flank_butt_keys():
+    """3. 옆구리 들이받기: 몸을 오른쪽으로 틀었다가 왼쪽으로 돌머리 옆면을 휘둘러 받는다."""
+    windup = {"pelvis": [(Z, -8)], "spine": [(Z, -18), (Y, 6)], "neck": [(Z, -22)], "head": [(Z, -20), (Y, -25)],
+              "tail.1": [(Z, 16)], "tail.2": [(Z, 12)], "tail.3": [(Z, 8)], "thigh.L": [(X, -10)],
+              "arm.L": [(X, -15)], "arm.R": [(X, -10)]}
+    strike = {"pelvis": [(Z, 10)], "spine": [(Z, 22), (Y, -8)], "neck": [(Z, 28)], "head": [(Z, 24), (Y, 30)],
+              "tail.1": [(Z, -22)], "tail.2": [(Z, -16)], "tail.3": [(Z, -12)], "thigh.R": [(X, -18)],
+              "shin.R": [(X, 14)], "arm.L": [(X, 20)], "arm.R": [(X, 25)]}
+    quake = merge(strike, {"neck": [(Z, 6)], "head": [(Z, 6), (Y, 6)], "tail.2": [(Z, -8)], "tail.3": [(Z, -12)]})
+    settle = merge(strike, {"neck": [(Z, -4)], "head": [(Z, -4), (Y, -4)], "tail.3": [(Z, 6)]})
+    return [(1, {}, (0, 0, 0)),
+            (7, windup, (-0.04, 0.02, -0.03)),
+            (12, strike, (0.15, -0.20, -0.04)),   # 맞는 순간 (왼쪽 앞)
+            (14, quake, (0.16, -0.21, -0.05)),
+            (17, settle, (0.16, -0.21, -0.03)),
+            (30, {}, (0.16, -0.21, 0))]
+
+
+def shove_keys():
+    """4. 밀어붙이기: 돌머리를 댄 채 다리로 세 번 밀어 상대를 밀어낸다 (벽으로 몰기)."""
+    lower = merge(CROUCH, {"pelvis": [(X, 6)], "spine": [(X, 16)], "neck": [(X, 12)], "head": [(X, 20)],
+                           "tail.1": [(X, 8)]})
+    def push(s):
+        return merge(lower, {"thigh.L": [(X, 30 if s > 0 else -18)], "shin.L": [(X, 10 if s > 0 else 26)],
+                             "thigh.R": [(X, -18 if s > 0 else 30)], "shin.R": [(X, 26 if s > 0 else 10)],
+                             "neck": [(X, 4)], "tail.1": [(Z, 8 * s)], "tail.2": [(Z, 10 * s)]})
+    gather = merge(lower, {"thigh.L": [(X, 6)], "thigh.R": [(X, 6)]})
+    return [(1, {}, (0, 0, 0)),
+            (6, lower, (0, 0.0, -0.06)),
+            (12, push(1), (0, -0.25, -0.07)),     # 1번째 밀기
+            (16, gather, (0, -0.30, -0.05)),
+            (20, push(-1), (0, -0.52, -0.07)),    # 2번째
+            (24, gather, (0, -0.57, -0.05)),
+            (28, push(1), (0, -0.80, -0.08)),     # 3번째 (가장 셈)
+            (31, merge(push(1), {"head": [(X, 6)]}), (0, -0.82, -0.08)),
+            (42, {}, (0, -0.82, 0))]
+
+
+# ---------------------------------------------------------------- 공중제비 패링
+def parry_flip_keys():
+    """앞으로 공중제비를 돌며 꼬리를 머리 위로 크게 돌려 앞을 내리친다.
+    회전은 root 가 아니라 골반 뼈에 준다 (root 회전은 Godot root motion 으로 빠져 화면에서 사라짐).
+    꼬리는 정점까지 접어 두었다가 순간적으로 휘두르고, 착지 뒤 한 번 더 튕긴다 (motion.md 4절)."""
+    tuck_legs = {"thigh.L": [(X, -50)], "thigh.R": [(X, -50)], "shin.L": [(X, 70)], "shin.R": [(X, 70)],
+                 "foot.L": [(X, -20)], "foot.R": [(X, -20)], "arm.L": [(X, -30)], "arm.R": [(X, -30)]}
+    curled_tail = {"tail.1": [(X, -25)], "tail.2": [(X, -30)], "tail.3": [(X, -30)]}
+    whip_tail = {"tail.1": [(X, 20)], "tail.2": [(X, 25)], "tail.3": [(X, 30)]}
+
+    def flip(deg, lift, tail):
+        # 목·몸통을 가슴 쪽으로 말아 회전 반경을 줄인다 (머리가 땅에 박히지 않게)
+        return merge(tuck_legs, tail, {"pelvis": [(X, deg)], "spine": [(X, 25)], "neck": [(X, 35)], "head": [(X, 25)],
+                                       "_pelvis": (0, 0, lift)})
+    crouch = merge(CROUCH, {"spine": [(X, 10)], "neck": [(X, 6)], "tail.1": [(X, -10)]})
+    land = merge(CROUCH, {"spine": [(X, 12)], "tail.1": [(X, 10)], "tail.2": [(X, 14)], "tail.3": [(X, 18)]})
+    flick = merge(CROUCH, {"spine": [(X, 6)], "tail.1": [(X, -6)], "tail.2": [(X, -10)], "tail.3": [(X, -14)]})
+    # 골반 회전은 60° 간격으로 키를 둬서 보간이 반대로 돌지 않게 한다
+    return [(1, {}, (0, 0, 0)),
+            (4, crouch, (0, 0, -0.08)),
+            (6, flip(0, 0.20, curled_tail), (0, 0, 0)),
+            (8, flip(60, 0.55, curled_tail), (0, 0, 0)),
+            (10, flip(120, 0.80, curled_tail), (0, 0, 0)),
+            (12, flip(180, 0.85, curled_tail), (0, 0, 0)),     # 정점: 꼬리는 아직 접힘
+            (14, flip(240, 0.75, whip_tail), (0, 0, 0)),       # 꼬리를 휘둘러 앞을 내리침
+            (16, flip(300, 0.45, whip_tail), (0, 0, 0)),
+            (18, flip(360, 0.08, whip_tail), (0, 0, 0)),
+            (20, land, (0, 0, -0.08)),                         # 착지
+            (23, flick, (0, 0, -0.04)),                        # 꼬리 한 번 더 튕김
+            (32, {}, (0, 0, 0))]
+
+
 ACTIONS = [
     ("Idle-loop", idle_keys), ("Walk-loop", walk_keys), ("Run-loop", run_keys),
+    ("Attack_RearSlam", rear_slam_keys), ("Attack_LowCharge", low_charge_keys),
+    ("Attack_FlankButt", flank_butt_keys), ("Attack_Shove", shove_keys),
     ("Attack_Slam", slam_keys), ("Attack_Uppercut", uppercut_keys), ("Attack_Hook", hook_keys),
-    ("Parry_Tail", parry_tail_keys), ("Backstep", backstep_keys), ("Dash", dash_keys),
+    ("Parry_Tail", parry_flip_keys), ("Backstep", backstep_keys), ("Dash", dash_keys),
     ("Dash_Left", lambda: side_dash_keys(1)), ("Dash_Right", lambda: side_dash_keys(-1)),
 ]
 
@@ -475,8 +592,9 @@ def main():
     # 확인용 렌더: 동작마다 주요 프레임
     setup_render()
     # 동작마다 가장 특징적인 프레임 하나 (전체 움직임은 preview_anims.py 의 GIF 로 본다)
-    shots = [("Idle-loop", 21), ("Walk-loop", 1), ("Run-loop", 1), ("Attack_Slam", 13), ("Attack_Uppercut", 13),
-             ("Attack_Hook", 14), ("Parry_Tail", 10), ("Backstep", 9), ("Dash", 8), ("Dash_Left", 8)]
+    shots = [("Idle-loop", 21), ("Walk-loop", 1), ("Run-loop", 1), ("Attack_RearSlam", 12), ("Attack_RearSlam", 16),
+             ("Attack_LowCharge", 11), ("Attack_FlankButt", 12), ("Attack_Shove", 28), ("Parry_Tail", 12),
+             ("Backstep", 9), ("Dash", 8)]
     by_name = {a.name: a for a in acts}
     for name, f in shots:
         arm.animation_data.action = by_name[name]

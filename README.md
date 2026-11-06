@@ -37,8 +37,8 @@ Windows 에서는 `tools/setup_windows.ps1` 내용을 PowerShell 에 붙여 넣�
 |---|---|
 | 방향키 위·아래 | 앞뒤 이동 |
 | 방향키 좌·우 | 몸 돌리기 (카메라가 살짝 늦게 같이 돈다) |
-| Space | 박치기 (책상을 날려 버린다, 세 번 맞으면 부서짐) |
-| E | 꼬리 패링 (한 바퀴 돈다) |
+| Space | 박치기 4종을 번갈아 (일어섰다 내리찍기·낮은 돌진·옆구리 들이받기·밀어붙이기). 맞으면 히트스톱과 화면 흔들림, 집기는 세 번 맞으면 부서짐 |
+| E | 공중제비 꼬리 패링 (카메라는 돌지 않음) |
 | Shift | 백스텝 |
 | R | 산재비스탄: 3초 동안 주변과 9시 시계가 느려진다. 쓸 때마다 체력 5 감소 |
 | F5 (게임 중) | 판 다시 시작 |
@@ -47,7 +47,7 @@ Windows 에서는 `tools/setup_windows.ps1` 내용을 PowerShell 에 붙여 넣�
 
 ![시험용 층](docs/renders/latest/godot_test_floor.png)
 
-플레이 녹화: [`docs/renders/latest/godot_test_floor.mp4`](docs/renders/latest/godot_test_floor.mp4)
+플레이 녹화: [`docs/renders/latest/godot_test_floor.mp4`](docs/renders/latest/godot_test_floor.mp4), 박치기 4종·공중제비 패링: [`docs/renders/latest/godot_attacks_parry.mp4`](docs/renders/latest/godot_attacks_parry.mp4)
 
 | 파일 | 내용 |
 |---|---|
@@ -78,15 +78,17 @@ python -m venv .venv
 .venv/bin/python tools/blender/rig_dino.py out/dino.blend out
 ```
 
-`out/ram_rigged.glb`에 뼈대 18개와 동작 11개가 들어간다.
+`out/ram_rigged.glb`에 뼈대 18개와 동작 15개가 들어간다.
 
 | 동작 | 내용 |
 |---|---|
 | `Idle-loop` · `Walk-loop` · `Run-loop` | 대기 · 걷기 · 달리기 |
-| `Attack_Slam` | 머리를 위로 들었다가 내리찍기 |
-| `Attack_Uppercut` | 낮게 숙였다가 아래에서 위로 올려치기 |
-| `Attack_Hook` | 오른쪽 위로 들었다가 왼쪽 아래로 후려치기 |
-| `Parry_Tail` | 한 바퀴 돌며 꼬리로 쓸어내기 |
+| `Attack_RearSlam` | 뒷다리로 일어섰다가 떨어지며 내리찍기 (큰뿔양) |
+| `Attack_LowCharge` | 몸을 낮추고 달려들어 정면으로 받기 |
+| `Attack_FlankButt` | 몸을 틀었다가 돌머리 옆면으로 후려치기 |
+| `Attack_Shove` | 머리를 댄 채 세 번 밀어붙이기 |
+| `Attack_Slam` · `Attack_Uppercut` · `Attack_Hook` | 첫 버전 박치기 (콤보용으로 남겨 둠) |
+| `Parry_Tail` | 앞으로 공중제비를 돌며 꼬리로 앞을 내리침 |
 | `Backstep` | 앞다리로 밀며 뒤로 0.65m |
 | `Dash` | 뒷다리로 차며 앞으로 1.0m |
 | `Dash_Left` · `Dash_Right` | 옆으로 0.8m |
