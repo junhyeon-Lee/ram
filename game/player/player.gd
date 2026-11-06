@@ -40,6 +40,11 @@ var _model: Node3D
 var _anim: AnimationPlayer
 var _root_rot_track := {}            # 동작 이름 → root 뼈 회전 트랙 번호
 var _spin_prev := 0.0
+var _visual_spin := 0.0                # 겉모습만 도는 회전 (몸·카메라는 그대로)
+
+# 이 동작들의 회전은 모델 겉모습에만 준다: 제자리에서 돌고 원래 방향으로 끝나므로
+# 몸 방향(이동·카메라 기준)을 돌리면 카메라까지 같이 돌아 화면이 어지럽다.
+const VISUAL_SPIN_ACTIONS := ["Parry_Tail"]
 
 
 func _ready() -> void:
@@ -125,6 +130,8 @@ func _start_action(anim_name: String) -> void:
 	_hit_done = false
 	_play(anim_name, 0.05)
 	_spin_prev = _root_yaw()
+	_visual_spin = 0.0
+	_model.rotation.y = PI
 
 
 func _action(real_delta: float) -> void:
@@ -137,8 +144,13 @@ func _action(real_delta: float) -> void:
 	# 회전은 root motion 변화량 대신 동작 속 root 뼈의 절대 방향을 읽어 차이만큼 돌린다.
 	# (Godot 의 회전 변화량은 뼈 좌표계 기준이고, 180° 지점에서 쿼터니언 부호가 뒤집혀 튄다)
 	var yaw := _root_yaw()
-	rotate_y(wrapf(yaw - _spin_prev, -PI, PI))
+	var dyaw := wrapf(yaw - _spin_prev, -PI, PI)
 	_spin_prev = yaw
+	if _current_action in VISUAL_SPIN_ACTIONS:
+		_visual_spin += dyaw
+		_model.rotation.y = PI + _visual_spin
+	else:
+		rotate_y(dyaw)
 
 	if _current_action.begins_with("Attack") and not _hit_done \
 			and _action_time >= HIT_WINDOW.x and _action_time <= HIT_WINDOW.y:
@@ -188,6 +200,8 @@ func _on_animation_finished(anim_name: StringName) -> void:
 	if _state == State.ACTION and anim_name == _current_action:
 		_state = State.MOVE
 		_current_action = ""
+		_visual_spin = 0.0
+		_model.rotation.y = PI
 		velocity.x = 0.0
 		velocity.z = 0.0
 

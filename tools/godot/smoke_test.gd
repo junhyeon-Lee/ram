@@ -75,20 +75,28 @@ func _process(delta: float) -> bool:
 				var d: Vector3 = p.global_position - _mark.pos
 				_check(d.z > 0.45 and d.z < 0.85, "backstep moves back ~0.65m (dz=%.2f)" % d.z)
 				_next()
-		5:  # 꼬리 패링: 한 바퀴 돌고 원래 방향으로
+		5:  # 꼬리 패링: 겉모습(모델)만 한 바퀴 돌고, 몸 방향과 카메라는 그대로
+			var cam: Camera3D = _main.get_node("Camera")
 			if _t < 0.05:
 				_mark.yaw = p.global_rotation.y
+				_mark.cam_yaw = cam.global_rotation.y
 			elif _t < 0.1:
 				Input.action_press("guard")
 			elif _t < 0.15:
 				Input.action_release("guard")
-			elif _t > 0.5 and not _mark.has("mid_yaw"):
-				_mark.mid_yaw = p.global_rotation.y
+			elif _t > 0.5 and not _mark.has("mid_model"):
+				_mark.mid_model = p._model.rotation.y
+				_mark.mid_body = p.global_rotation.y
+				_mark.mid_cam = cam.global_rotation.y
 			elif _t > 1.4:
-				var mid := absf(wrapf(_mark.mid_yaw - _mark.yaw, -PI, PI))
-				var end := absf(wrapf(p.global_rotation.y - _mark.yaw, -PI, PI))
-				_check(mid > deg_to_rad(60), "parry spins the body (mid %.0f deg)" % rad_to_deg(mid))
-				_check(end < deg_to_rad(10), "parry ends facing forward (%.1f deg off)" % rad_to_deg(end))
+				var spin := absf(wrapf(_mark.mid_model - PI, -PI, PI))
+				var body := absf(wrapf(_mark.mid_body - _mark.yaw, -PI, PI))
+				var cam_turn := absf(wrapf(_mark.mid_cam - _mark.cam_yaw, -PI, PI))
+				var end := absf(wrapf(p._model.rotation.y - PI, -PI, PI))
+				_check(spin > deg_to_rad(60), "parry spins the model (mid %.0f deg)" % rad_to_deg(spin))
+				_check(body < deg_to_rad(1), "parry keeps body facing (%.2f deg)" % rad_to_deg(body))
+				_check(cam_turn < deg_to_rad(1), "camera does not turn during parry (%.2f deg)" % rad_to_deg(cam_turn))
+				_check(end < deg_to_rad(1), "model back to front after parry (%.2f deg)" % rad_to_deg(end))
 				_next()
 		6:  # 산재비스탄: 엔진·시계가 느려지고, Ram 은 실제 속도 유지, 체력이 깎임
 			if not _mark.has("sanjae_pressed"):
