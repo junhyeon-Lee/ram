@@ -53,7 +53,7 @@ Windows 에서는 `tools/setup_windows.ps1` 내용을 PowerShell 에 붙여 넣�
 |---|---|
 | `game/main.gd` | 시험용 층(방·책상·계단 문·HUD)과 판 시작·끝 |
 | `game/player/player.gd` | Ram 조작, 동작 재생, root motion(대시·백스텝·패링), 박치기 판정, 산재비스탄 |
-| `game/camera/follow_camera.gd` | 등 뒤에서 살짝 늦게 따라 도는 카메라 |
+| `game/camera/follow_camera.gd` | 등 뒤에서 살짝 늦게 따라 도는 카메라 (벽에 막히면 벽 안쪽으로 당김) |
 | `game/hud/work_clock.gd` | 9시 마감 시계 (2배속, 산재비스탄 중 같이 느려짐) |
 | `game/props/breakable.gd` | 박치기로 날아가는 집기 |
 | `tools/godot/setup_input.gd` | 키 배치를 `project.godot` 에 써 넣는 스크립트 |

@@ -29,6 +29,7 @@ func _process(delta: float) -> bool:
 			if _t > 0.5:
 				_mark.pos = p.global_position
 				_mark.yaw = p.global_rotation.y
+				_check(_camera_sees(p), "camera sees Ram at spawn (no wall in between)")
 				_next()
 		1:  # 앞으로 1초
 			Input.action_press("move_forward")
@@ -127,6 +128,15 @@ func _process(delta: float) -> bool:
 func _next() -> void:
 	_step += 1
 	_t = 0.0
+
+
+## 카메라에서 Ram 몸 가운데까지 벽(StaticBody3D)이 가로막지 않는지
+func _camera_sees(p: RamPlayer) -> bool:
+	var cam := root.get_camera_3d()
+	var q := PhysicsRayQueryParameters3D.create(cam.global_position, p.global_position + Vector3.UP * 0.9)
+	q.exclude = [p.get_rid()]
+	var hit := cam.get_world_3d().direct_space_state.intersect_ray(q)
+	return hit.is_empty() or not (hit.collider is StaticBody3D)
 
 
 func _check(ok: bool, what: String) -> void:
