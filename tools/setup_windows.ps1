@@ -1,12 +1,12 @@
 # Ram — Windows PC 세팅 (Godot 4.7.2 + 저장소)
 # 사용: PowerShell 에 이 파일 내용을 붙여 넣거나, 저장소를 받은 뒤 `powershell -ExecutionPolicy Bypass -File tools\setup_windows.ps1`
-# 하는 일: Git 없으면 설치 → 바탕화면\Godot 에 Godot 4.7.2 → 바탕화면\ram 에 저장소(있으면 pull) → 에디터로 열기
+# 하는 일: Git 없으면 설치 → 바탕화면\Godot 에 Godot 4.7.2 → 바탕화면\home\ram 에 저장소(있으면 pull) → 에디터로 열기
 
 $ProgressPreference = 'SilentlyContinue'
 $Desk     = [Environment]::GetFolderPath('Desktop')
 $GodotDir = Join-Path $Desk 'Godot'
 $GodotExe = Join-Path $GodotDir 'Godot_v4.7.2-stable_win64.exe'
-$Repo     = Join-Path $Desk 'ram'
+$Repo     = Join-Path $Desk 'home\ram'   # 바탕화면\home = 게임 프로젝트 보관 폴더
 
 # 1) Git 이 없으면 설치
 if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
