@@ -50,7 +50,7 @@ Windows 에서는 `tools/setup_windows.ps1` 내용을 PowerShell 에 붙여 넣�
 
 ![시험용 층](docs/renders/latest/godot_test_floor.png)
 
-플레이 녹화: [`docs/renders/latest/godot_test_floor.mp4`](docs/renders/latest/godot_test_floor.mp4), 박치기 4종·공중제비 패링: [`docs/renders/latest/godot_attacks_parry.mp4`](docs/renders/latest/godot_attacks_parry.mp4)
+플레이 녹화: [`docs/renders/latest/godot_test_floor.mp4`](docs/renders/latest/godot_test_floor.mp4), 박치기 4종·공중제비 패링: [`docs/renders/latest/godot_attacks_parry.mp4`](docs/renders/latest/godot_attacks_parry.mp4), 콤보·파편·소리: [`docs/renders/latest/godot_combo_fx.mp4`](docs/renders/latest/godot_combo_fx.mp4)
 
 | 파일 | 내용 |
 |---|---|
@@ -59,6 +59,9 @@ Windows 에서는 `tools/setup_windows.ps1` 내용을 PowerShell 에 붙여 넣�
 | `game/camera/follow_camera.gd` | 등 뒤에서 살짝 늦게 따라 도는 카메라 (벽에 막히면 벽 안쪽으로 당김) |
 | `game/hud/work_clock.gd` | 9시 마감 시계 (2배속, 산재비스탄 중 같이 느려짐) |
 | `game/props/breakable.gd` | 박치기로 날아가는 집기 |
+| `game/player/foot_grounder.gd` | 발 IK: 발이 바닥 아래로 묻히려 할 때만 다리를 접음 |
+| `game/fx/` | 합성 효과음(충돌음·바람 소리)과 맞는 순간의 파편 |
+| `tools/godot/measure_feet.gd` | 동작별 발 속도·발목 높이 측정 (발 미끄러짐 맞춤용) |
 | `tools/godot/setup_input.gd` | 키 배치를 `project.godot` 에 써 넣는 스크립트 |
 | `tools/godot/smoke_test.gd` | 헤드리스 자동 점검: `godot --headless --path . --fixed-fps 120 --script tools/godot/smoke_test.gd` |
 

@@ -42,6 +42,11 @@ const HEAVY_HOLD := 0.35              # Space 를 이만큼 누르고 있으면 
 const FINISHER_BONUS := {"stop": 1.5, "shake": 1.4, "kick": 1.3}
 const HIT_RADIUS := 0.75              # 돌머리 둘레 판정 반지름
 
+# 애니메이션 속 디딘 발이 땅을 미는 속도 (tools/godot/measure_feet.gd 로 잼). 동작을 바꾸면 다시 잰다.
+# 이동 속도에 맞춰 재생 속도를 바꿔 발이 미끄러지지 않게 한다.
+const RUN_FOOT_SPEED := 4.14
+const WALK_FOOT_SPEED := 1.41
+
 # 산재비스탄: 주변(과 9시 시계)을 느리게, Ram 은 그대로. 쓸 때마다 체력이 조금 깎인다(산재).
 const SANJAE_SCALE := 0.3
 const SANJAE_REAL_SECONDS := 3.0
@@ -63,6 +68,7 @@ var _hitstop_left := 0.0
 var hitstop_count := 0                # 점검용: 히트스톱이 걸린 횟수
 var _skeleton: Skeleton3D
 var _head_bone := -1
+var feet: FootGrounder
 var combo_step := 0                   # 지금 콤보 몇 타째 (0 = 콤보 아님)
 var _queued := false                  # 다음 박치기 입력이 들어와 있음
 var _queued_heavy := false
@@ -100,6 +106,7 @@ func _ready() -> void:
 	_anim.root_motion_track = NodePath("RamRig/Skeleton3D:root")
 	_anim.animation_finished.connect(_on_animation_finished)
 	_skeleton = _model.find_child("Skeleton3D", true, false)
+	feet = FootGrounder.attach(_skeleton, self)
 	_setup_blends()
 	_head_bone = _skeleton.find_bone("head")
 	for anim_name in _anim.get_animation_list():
@@ -151,12 +158,19 @@ func _move(real_delta: float) -> void:
 	velocity.x = dir.x
 	velocity.z = dir.z
 
+	# 재생 속도를 이동 속도에 맞춘다 (발 미끄러짐 방지). 제자리 돌기는 원래 속도.
 	if fwd > 0.1:
 		_play("Run")
-	elif fwd < -0.1 or absf(turn) > 0.1:
+		_anim.speed_scale = _base_anim_speed() * forward_speed * fwd / RUN_FOOT_SPEED
+	elif fwd < -0.1:
 		_play("Walk")
+		_anim.speed_scale = _base_anim_speed() * back_speed * -fwd / WALK_FOOT_SPEED
+	elif absf(turn) > 0.1:
+		_play("Walk")
+		_anim.speed_scale = _base_anim_speed()
 	else:
 		_play("Idle")
+		_anim.speed_scale = _base_anim_speed()
 
 	if Input.is_action_just_pressed("attack"):
 		combo_step = 1
@@ -171,6 +185,7 @@ func _move(real_delta: float) -> void:
 
 
 func _start_action(anim_name: String, blend := 0.05) -> void:
+	_anim.speed_scale = _base_anim_speed()
 	_state = State.ACTION
 	_current_action = anim_name
 	_action_time = 0.0
@@ -215,6 +230,7 @@ func _start_attack(anim_name: String) -> void:
 	_is_finisher = anim_name == COMBO_FINISHER and combo_step >= 2
 	_start_action(anim_name, 0.05)
 	combo_changed.emit(combo_step)
+	Sfx.play_at(get_parent(), Sfx.whoosh(), global_position + Vector3.UP, -6.0, randf_range(0.9, 1.15))
 
 
 ## 콤보: 다음 입력을 모아 두었다가, 마지막 맞는 순간이 지나면 회복 동작을 끊고 잇는다
@@ -281,6 +297,10 @@ func _headbutt_hit(spec: Dictionary) -> void:
 			body.take_headbutt(dir * kick + Vector3.UP * kick * float(spec.get("up", 0.35)))
 			landed = true
 	if landed:
+		var power: float = clampf(spec.get("stop", 0.05) * float(bonus["stop"]) / 0.1, 0.2, 1.5)
+		ImpactFx.spawn(get_parent(), dome, power)
+		# 소리 크기: 피니시가 겹쳐도 찢어지지 않게 1 아래로
+		Sfx.play_at(get_parent(), Sfx.thud(), dome, linear_to_db(0.35 + 0.35 * power), randf_range(0.9, 1.1))
 		_hitstop_left = spec.get("stop", 0.05) * float(bonus["stop"])
 		hitstop_count += 1
 		_anim.speed_scale = 0.0

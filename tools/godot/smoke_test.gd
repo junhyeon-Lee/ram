@@ -96,6 +96,8 @@ func _process(delta: float) -> bool:
 					_check(ok, "%s %s (hits=%s)" % [r[0], want, "broken" if r[1] == 99 else str(r[1])])
 				_check(p.hitstop_count - _mark.hitstops >= 4, "hitstop on every landed hit (%d)" % (p.hitstop_count - _mark.hitstops))
 				_check(_mark.max_shake > 0.05, "camera shakes on impact (max %.2f)" % _mark.max_shake)
+				_check(ImpactFx.spawned >= 4, "impact debris spawns on hits (%d)" % ImpactFx.spawned)
+				_check(Sfx.thud().get_length() > 0.2 and Sfx.whoosh().get_length() > 0.15, "synth sounds are built (thud %.2fs, whoosh %.2fs)" % [Sfx.thud().get_length(), Sfx.whoosh().get_length()])
 				# 번갈아 쓰기: 연달아 같은 박치기가 없고, 네 번마다 네 가지가 다 나온다
 				var seq: Array = []
 				p._attack_bag.clear()   # 한 바퀴 경계에 맞춰 검사
@@ -232,7 +234,54 @@ func _process(delta: float) -> bool:
 					_check(_mark.has("hold_ok"), "holding Space goes to the finisher")
 					_next()
 
-		8:  # 9시 마감: 시계를 8:59:58 로 돌려 마감 처리 확인
+		8:  # 발: 달리기 재생 속도가 이동 속도에 맞는지, 깊게 웅크려도 발이 바닥에 파묻히지 않는지(IK), 다리 길이 유지
+			var sk8: Skeleton3D = p._skeleton
+			if not _mark.has("f_init"):
+				_mark.f_init = true
+				_mark.ank_min = INF
+				_mark.ik_max = 0.0
+				_mark.len_err = 0.0
+				var lens := {}
+				for side in ["L", "R"]:
+					lens[side] = [sk8.get_bone_rest(sk8.find_bone("shin." + side)).origin.length(),
+						sk8.get_bone_rest(sk8.find_bone("foot." + side)).origin.length()]
+				_mark.rest_lens = lens
+				sk8.skeleton_updated.connect(func() -> void:
+					if not _mark.get("f_watch", false):
+						return
+					for side in ["L", "R"]:
+						var th := sk8.get_bone_global_pose(sk8.find_bone("thigh." + side)).origin
+						var sh := sk8.get_bone_global_pose(sk8.find_bone("shin." + side)).origin
+						var ft := sk8.get_bone_global_pose(sk8.find_bone("foot." + side)).origin
+						var y: float = (sk8.global_transform * ft).y
+						_mark.ank_min = minf(_mark.ank_min, y)
+						var rl: Array = _mark.rest_lens[side]
+						_mark.len_err = maxf(_mark.len_err, maxf(absf(th.distance_to(sh) - rl[0]), absf(sh.distance_to(ft) - rl[1])))
+					_mark.ik_max = maxf(_mark.ik_max, p.feet.max_influence))
+				p.global_position = Vector3(-5.6, 0.05, 6.0)
+				p.global_rotation.y = 0.0
+				Input.action_press("move_forward")
+				_mark.f_t0 = _t
+			elif not _mark.has("f_run_checked"):
+				if _t - _mark.f_t0 > 0.4:
+					_mark.f_run_checked = true
+					Input.action_release("move_forward")
+					var want := p.forward_speed / RamPlayer.RUN_FOOT_SPEED
+					_check(absf(p._anim.speed_scale - want) < 0.02, "run plays at move speed / foot speed (%.3f, want %.3f)" % [p._anim.speed_scale, want])
+			elif not _mark.has("f_shove"):
+				if p._state == 0 and _t - _mark.f_t0 > 0.8:
+					_mark.f_shove = true
+					_mark.f_watch = true
+					_mark.f_t1 = _t
+					p._start_action("Attack_Shove")
+			elif _t - _mark.f_t1 > 1.6:
+				_mark.f_watch = false
+				_check(_mark.ik_max > 0.9, "foot IK turns on in a deep crouch (%.2f)" % _mark.ik_max)
+				_check(_mark.ank_min > 0.055, "ankles stay above the floor (lowest %.3fm, was -0.06 without IK)" % _mark.ank_min)
+				_check(_mark.len_err < 0.01, "IK keeps leg lengths (max error %.4fm)" % _mark.len_err)
+				_next()
+
+		9:  # 9시 마감: 시계를 8:59:58 로 돌려 마감 처리 확인
 			if _t < 0.05:
 				_main.clock.game_seconds = 9 * 3600 - 2.0
 			elif _t > 1.5:

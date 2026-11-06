@@ -22,6 +22,7 @@ python -m venv .venv && .venv/bin/pip install bpy pillow   # bpy 는 Python 3.13
 - 키 배치를 바꾸면 `tools/godot/setup_input.gd` 를 고치고 다시 돌린다(`project.godot` 를 손으로 고치지 않는다).
 - Ram 모델은 +Z 를 보고 들어온다(플레이어에서 180° 돌림). 동작 속 root 뼈 회전은 Godot root motion 회전값 대신 `_root_yaw()` 로 읽는다(180° 에서 값이 튐).
 - `.import`·`.uid` 파일은 커밋한다. `.godot/` 는 커밋하지 않는다.
+- 걷기·달리기 동작을 바꾸면 `tools/godot/measure_feet.gd` 로 발 속도를 다시 재서 `player.gd` 의 `RUN_FOOT_SPEED`·`WALK_FOOT_SPEED` 를 고친다.
 
 ## 디자인을 바꿀 때
 

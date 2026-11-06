@@ -178,7 +178,7 @@ func _build_hud() -> void:
 	box.add_child(_combo_label)
 
 	var help := Label.new()
-	help.text = "Arrows: move/turn   Space: headbutt (again after hit: combo, hold: finisher, Up+Space: charge)   E: flip parry   Shift: backstep   R: Sanjae-vistan   F5: restart"
+	help.text = "Arrows: move/turn   Space: headbutt   (again after a hit: combo / hold: finisher / Up+Space: charge)\nE: flip parry   Shift: backstep   R: Sanjae-vistan   F5: restart"
 	help.add_theme_font_size_override("font_size", 16)
 	box.add_child(help)
 
