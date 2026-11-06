@@ -33,7 +33,14 @@ func _process(delta: float) -> bool:
 				_next()
 		1:  # 앞으로 1초
 			Input.action_press("move_forward")
+			# 달리는 동안 골반 높이가 출렁이는지 (root motion 으로 빠져나가지 않고 화면에 보이는지)
+			var sk: Skeleton3D = p._model.find_child("Skeleton3D", true, false)
+			var py := sk.get_bone_global_pose(sk.find_bone("pelvis")).origin.y
+			if _t > 0.3:
+				_mark.py_min = minf(_mark.get("py_min", py), py)
+				_mark.py_max = maxf(_mark.get("py_max", py), py)
 			if _t > 1.0:
+				_check(_mark.py_max - _mark.py_min > 0.03, "run bobs the pelvis up/down (range %.3fm)" % (_mark.py_max - _mark.py_min))
 				Input.action_release("move_forward")
 				var moved: Vector3 = p.global_position - _mark.pos
 				_check(moved.z < -2.0 and absf(moved.x) < 0.3, "forward 1s moves ~-Z (moved=%s)" % moved)

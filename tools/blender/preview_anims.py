@@ -1,6 +1,6 @@
 """Ram 주인공 — 동작 미리보기 GIF
 
-실행:  python preview_anims.py <ram_rigged.blend> [출력폴더] [--step N] [--size PX]
+실행:  python preview_anims.py <ram_rigged.blend> [출력폴더] [--step N] [--size PX] [--only 동작1,동작2]
   - 동작마다 옆 3/4 각도에서 프레임을 렌더해 출력폴더/anim_<동작>.gif 로 묶는다.
   - GIF 를 만들려면 Pillow 가 필요하다 (pip install pillow).
 """
@@ -13,11 +13,15 @@ from mathutils import Vector
 
 argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else [a for a in sys.argv[1:] if not a.endswith(".py")]
 opts = {"--step": 2, "--size": 360}
+only = None
 pos = []
 i = 0
 while i < len(argv):
     if argv[i] in opts:
         opts[argv[i]] = int(argv[i + 1])
+        i += 2
+    elif argv[i] == "--only":
+        only = set(argv[i + 1].split(","))
         i += 2
     else:
         pos.append(argv[i])
@@ -59,7 +63,7 @@ def main():
     arm = bpy.data.objects["RamRig"]
     from PIL import Image  # 렌더가 끝난 뒤에만 필요
 
-    for act in [a for a in bpy.data.actions if a.users or a.use_fake_user]:
+    for act in [a for a in bpy.data.actions if (a.users or a.use_fake_user) and (only is None or a.name in only)]:
         arm.animation_data.action = act
         f0, f1 = (int(v) for v in act.frame_range)
         loop = act.name.endswith("-loop")

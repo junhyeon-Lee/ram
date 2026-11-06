@@ -189,13 +189,20 @@ X, Y, Z = (1, 0, 0), (0, 1, 0), (0, 0, 1)
 
 def key_pose(arm, frame, pose, root_loc=(0, 0, 0)):
     """pose: {뼈: [(축, 각도), ...]}. 적지 않은 뼈는 기본 자세로 키를 넣는다(동작마다 완결).
-    root 의 회전·위치는 캐릭터 전체의 회전·이동이다 (Godot 에서 root motion 으로 쓸 수 있다)."""
+    root 의 회전·수평 위치는 캐릭터 전체의 회전·이동이다 (Godot 에서 root motion 으로 빠져나간다).
+    높이(위아래 출렁임·웅크림)는 root 가 아니라 골반 뼈에 준다: root 에 주면 Godot 가 root motion 으로
+    떼어 가서 화면에서 사라진다. pose["_pelvis"] = (x, y, z) 로 골반을 월드 축 기준으로 옮길 수도 있다."""
+    pelvis_off = Vector(pose.get("_pelvis", (0, 0, 0))) + Vector((0, 0, root_loc[2]))
     for pb in arm.pose.bones:
         pb.rotation_mode = "QUATERNION"
         pb.rotation_quaternion = compose(pb, pose.get(pb.name, []))
         pb.keyframe_insert("rotation_quaternion", frame=frame)
         if pb.name == "root":
-            pb.location = Vector(root_loc)
+            pb.location = Vector((root_loc[0], root_loc[1], 0.0))
+            pb.keyframe_insert("location", frame=frame)
+        elif pb.name == "pelvis":
+            # 포즈 위치는 뼈의 쉬는 자세 축 기준이라 월드 축 → 뼈 축으로 바꾼다
+            pb.location = pb.bone.matrix_local.to_3x3().inverted() @ pelvis_off
             pb.keyframe_insert("location", frame=frame)
         else:
             pb.location = Vector()
@@ -234,34 +241,64 @@ def idle_keys():
     return [(1, rest, (0, 0, 0)), (21, breathe, (0, 0, 0)), (31, sway_back, (0, 0, 0)), (41, rest, (0, 0, 0))]
 
 
-def gait_keys(length, swing, lean, bob, arm_swing, tail_sway):
-    """걷기·달리기 공통: 다리 교차 4박자 (앞 디딤 → 지나감 → 반대 디딤 → 지나감)."""
-    lean_p = {"spine": [(X, lean)], "neck": [(X, -lean * 0.6)], "head": [(X, -lean * 0.4)]}
+def gait_keys(length, swing, shin_base, lift, absorb, bob, lateral, twist, lean,
+              tail_sway, arm_swing, keys_per_cycle=8):
+    """걷기·달리기 공통 보행 (docs/references/motion.md).
+    한 걸음을 디딤 → 내려앉음 → 지나감 → 솟음 네 자세로, 두 걸음(한 주기)에 8개 키.
+      - 몸이 가장 낮은 때는 디딘 직후(내려앉음), 가장 높은 때는 지나간 직후(솟음).
+      - 골반은 디딘 다리 쪽으로 실리고, 앞으로 나온 다리 쪽으로 비틀린다. 몸통은 반대로 비튼다.
+      - 꼬리는 골반과 엇박으로 좌우로 크게, 뿌리에서 끝으로 갈수록 늦게 따라온다 (Bishop 2021).
+      - 머리는 몸의 출렁임·비틀림을 되받아 덜 흔들린다.
+    φ=0: 왼다리 디딤(앞), 오른다리 뒤. 왼쪽은 +X.
+    """
+    TAU = math.tau
 
-    def stride(s):
-        return merge(lean_p, {
-            "thigh.L": [(X, -swing * s)], "shin.L": [(X, swing * 0.55 if s > 0 else swing * 1.25)],
-            "foot.L": [(X, -swing * 0.3 * s)],
-            "thigh.R": [(X, swing * s)], "shin.R": [(X, swing * 1.25 if s > 0 else swing * 0.55)],
-            "foot.R": [(X, swing * 0.3 * s)],
-            "arm.L": [(X, arm_swing * s)], "arm.R": [(X, -arm_swing * s)],
-            "tail.1": [(X, lean * 0.6), (Z, tail_sway * s)], "tail.2": [(Z, tail_sway * 1.3 * s)],
-            "tail.3": [(Z, tail_sway * 1.6 * s)],
-        })
-    passing = merge(lean_p, {"thigh.L": [(X, 0)], "shin.L": [(X, swing * 0.9)],
-                             "thigh.R": [(X, 0)], "shin.R": [(X, swing * 0.9)], "tail.1": [(X, lean * 0.6)]})
-    q = length // 4
-    up, down = (0, 0, bob), (0, 0, -bob * 0.5)
-    return [(1, stride(1), down), (1 + q, passing, up), (1 + 2 * q, stride(-1), down),
-            (1 + 3 * q, passing, up), (1 + length, stride(1), down)]
+    def pose_at(ph):
+        c, sn = math.cos(TAU * ph), math.sin(TAU * ph)
+        dip = math.cos(2 * TAU * (ph - 0.125))          # 1 = 내려앉음(가장 낮음), -1 = 솟음
+
+        def leg(phl):
+            thigh = -swing * math.cos(TAU * phl)
+            stance = (phl % 1.0) < 0.5
+            shin = shin_base + lift * max(0.0, -math.sin(TAU * phl))
+            if stance:
+                shin += absorb * max(0.0, math.sin(2 * TAU * phl))   # 디딘 무릎이 무게를 받는다
+            foot = -0.55 * thigh - 0.45 * (shin - shin_base)          # 발바닥을 땅과 나란하게
+            return thigh, shin, foot
+
+        tl, sl, fl = leg(ph)
+        tr, sr, fr = leg(ph + 0.5)
+        return {
+            "_pelvis": (lateral * sn, 0.0, -bob * dip),
+            "pelvis": [(Z, -twist * c), (Y, -3.0 * sn)],
+            "spine": [(X, lean + 1.5 * dip), (Z, twist * 0.7 * c)],
+            "neck": [(X, -lean * 0.6 - 1.2 * dip), (Z, twist * 0.2 * c)],
+            "head": [(X, -lean * 0.4 - 1.0 * dip), (Z, -twist * 0.4 * c)],
+            "thigh.L": [(X, tl)], "shin.L": [(X, sl)], "foot.L": [(X, fl)],
+            "thigh.R": [(X, tr)], "shin.R": [(X, sr)], "foot.R": [(X, fr)],
+            "arm.L": [(X, arm_swing * c)], "arm.R": [(X, -arm_swing * c)],
+            "forearm.L": [(X, 0.5 * arm_swing * math.cos(TAU * (ph - 0.1)))],
+            "forearm.R": [(X, -0.5 * arm_swing * math.cos(TAU * (ph - 0.1)))],
+            "tail.1": [(X, lean * 0.5 + 2.0 * dip), (Z, -tail_sway * math.sin(TAU * (ph - 0.08)))],
+            "tail.2": [(Z, -tail_sway * 1.4 * math.sin(TAU * (ph - 0.16)))],
+            "tail.3": [(Z, -tail_sway * 1.8 * math.sin(TAU * (ph - 0.24)))],
+        }
+
+    step = length // keys_per_cycle
+    keys = [(1 + i * step, pose_at(i / keys_per_cycle), (0, 0, 0)) for i in range(keys_per_cycle)]
+    keys.append((1 + length, pose_at(0.0), (0, 0, 0)))   # 처음과 같은 자세로 닫아 끊김 없이 반복
+    return keys
 
 
 def walk_keys():
-    return gait_keys(length=32, swing=18, lean=4, bob=0.015, arm_swing=8, tail_sway=5)
+    return gait_keys(length=32, swing=20, shin_base=8, lift=38, absorb=10, bob=0.022,
+                     lateral=0.035, twist=7, lean=4, tail_sway=9, arm_swing=8)
 
 
 def run_keys():
-    return gait_keys(length=16, swing=32, lean=10, bob=0.04, arm_swing=20, tail_sway=7)
+    # 낮고 웅크린 '땅 달리기' (에뮤 연구): 출렁임은 짧고 단단하게, 좌우 실림은 줄인다
+    return gait_keys(length=16, swing=34, shin_base=14, lift=62, absorb=14, bob=0.04,
+                     lateral=0.02, twist=9, lean=12, tail_sway=11, arm_swing=18)
 
 
 # ---------------------------------------------------------------- 박치기 3종
