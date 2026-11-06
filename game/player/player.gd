@@ -1,11 +1,13 @@
 ## Ram — 플레이어 조작
 ## 방향키: 위·아래 앞뒤 이동, 좌우 몸 돌리기 (카메라가 따라 돈다)
-## Space 박치기(4종 번갈아) · E 공중제비 꼬리 패링 · Shift 백스텝 · R 산재비스탄(시간 감속)
+## Space 박치기(4종 번갈아, 맞은 뒤 다시 누르면 콤보, 길게 누르면 피니시, 위+Space 돌진)
+## E 공중제비 꼬리 패링 · Shift 백스텝 · R 산재비스탄(시간 감속)
 class_name RamPlayer
 extends CharacterBody3D
 
 signal sanjae_changed(gauge: float, active: bool)
 signal hp_changed(hp: float)
+signal combo_changed(step: int)
 
 const RAM_SCENE := preload("res://assets/characters/ram/ram_rigged.glb")
 
@@ -24,7 +26,20 @@ const ATTACKS := {
 	"Attack_FlankButt": {"hits": [0.367], "stop": 0.06, "shake": 0.12, "kick": 6.5},
 	# 밀어붙이기는 날리지 않고 Ram 걸음(0.25m)만큼씩 밀고 간다: 약하게, 위로 띄우지 않게
 	"Attack_Shove": {"hits": [0.367, 0.633, 0.90], "stop": 0.035, "shake": 0.06, "kick": 1.6, "up": 0.0},
+	# 콤보 연결용 (첫 버전 박치기 재활용). 올려치기는 물체를 위로 띄운다
+	"Attack_Hook": {"hits": [0.433], "stop": 0.06, "shake": 0.12, "kick": 6.5},
+	"Attack_Uppercut": {"hits": [0.40], "stop": 0.06, "shake": 0.12, "kick": 5.0, "up": 1.2},
 }
+
+# 콤보 (시푸 참고, 1차 초안): 맞은 뒤 Space 를 다시 누르면 회복 동작을 끊고 다음 박치기로 잇는다.
+# 4타째는 피니시(일어섰다 내리찍기, 더 세게). Space 를 길게 누르고 있으면 바로 피니시. 위+Space 는 돌진 공격.
+const COMBO_MAX := 4
+const COMBO_FINISHER := "Attack_RearSlam"
+const COMBO_LINKS := ["Attack_FlankButt", "Attack_Hook", "Attack_Uppercut", "Attack_LowCharge"]
+const DASH_ATTACK := "Attack_LowCharge"
+const LINK_DELAY := 0.10              # 마지막 맞는 순간 뒤 이만큼 지나야 다음으로 이어진다
+const HEAVY_HOLD := 0.35              # Space 를 이만큼 누르고 있으면 강공(피니시)
+const FINISHER_BONUS := {"stop": 1.5, "shake": 1.4, "kick": 1.3}
 const HIT_RADIUS := 0.75              # 돌머리 둘레 판정 반지름
 
 # 산재비스탄: 주변(과 9시 시계)을 느리게, Ram 은 그대로. 쓸 때마다 체력이 조금 깎인다(산재).
@@ -48,6 +63,12 @@ var _hitstop_left := 0.0
 var hitstop_count := 0                # 점검용: 히트스톱이 걸린 횟수
 var _skeleton: Skeleton3D
 var _head_bone := -1
+var combo_step := 0                   # 지금 콤보 몇 타째 (0 = 콤보 아님)
+var _queued := false                  # 다음 박치기 입력이 들어와 있음
+var _queued_heavy := false
+var _hold_time := 0.0
+var _link_index := 0
+var _is_finisher := false
 
 var _model: Node3D
 var _anim: AnimationPlayer
@@ -79,6 +100,7 @@ func _ready() -> void:
 	_anim.root_motion_track = NodePath("RamRig/Skeleton3D:root")
 	_anim.animation_finished.connect(_on_animation_finished)
 	_skeleton = _model.find_child("Skeleton3D", true, false)
+	_setup_blends()
 	_head_bone = _skeleton.find_bone("head")
 	for anim_name in _anim.get_animation_list():
 		var a := _anim.get_animation(anim_name)
@@ -137,7 +159,9 @@ func _move(real_delta: float) -> void:
 		_play("Idle")
 
 	if Input.is_action_just_pressed("attack"):
-		_start_action(_next_attack())
+		combo_step = 1
+		# 위+Space 는 돌진 공격, 그냥 Space 는 4종을 번갈아
+		_start_attack(DASH_ATTACK if Input.is_action_pressed("move_forward") else _next_attack())
 	elif Input.is_action_just_pressed("backstep"):
 		_start_action("Backstep")
 	elif Input.is_action_just_pressed("guard"):
@@ -146,12 +170,12 @@ func _move(real_delta: float) -> void:
 		activate_sanjae()
 
 
-func _start_action(anim_name: String) -> void:
+func _start_action(anim_name: String, blend := 0.05) -> void:
 	_state = State.ACTION
 	_current_action = anim_name
 	_action_time = 0.0
 	_hits_done = 0
-	_play(anim_name, 0.05)
+	_anim.play(anim_name, blend)   # 같은 동작을 연달아 써도 처음부터
 	_spin_prev = _root_yaw()
 	_visual_spin = 0.0
 	_model.rotation.y = PI
@@ -180,6 +204,44 @@ func _action(real_delta: float) -> void:
 	if _hits_done < hits.size() and _action_time >= hits[_hits_done]:
 		_hits_done += 1
 		_headbutt_hit(spec)
+	if not hits.is_empty():
+		_update_combo(real_delta, hits)
+
+
+func _start_attack(anim_name: String) -> void:
+	_queued = false
+	_queued_heavy = false
+	_hold_time = 0.0
+	_is_finisher = anim_name == COMBO_FINISHER and combo_step >= 2
+	_start_action(anim_name, 0.05)
+	combo_changed.emit(combo_step)
+
+
+## 콤보: 다음 입력을 모아 두었다가, 마지막 맞는 순간이 지나면 회복 동작을 끊고 잇는다
+func _update_combo(real_delta: float, hits: Array) -> void:
+	if Input.is_action_just_pressed("attack"):
+		_queued = true
+	if Input.is_action_pressed("attack"):
+		_hold_time += real_delta
+		if _hold_time >= HEAVY_HOLD and combo_step < COMBO_MAX:
+			_queued = true
+			_queued_heavy = true
+	else:
+		_hold_time = 0.0
+	if _queued and combo_step < COMBO_MAX and _hits_done >= hits.size() \
+			and _action_time >= float(hits.back()) + LINK_DELAY:
+		combo_step += 1
+		var next: String
+		if _queued_heavy or combo_step >= COMBO_MAX:
+			next = COMBO_FINISHER
+			combo_step = maxi(combo_step, 2)
+		else:
+			next = COMBO_LINKS[_link_index % COMBO_LINKS.size()]
+			_link_index += 1
+			if next == _current_action:
+				next = COMBO_LINKS[_link_index % COMBO_LINKS.size()]
+				_link_index += 1
+		_start_attack(next)
 
 
 ## 다음 박치기: 네 가지를 섞어 한 바퀴씩 쓰고, 바로 앞과 같은 것은 연달아 나오지 않게 한다
@@ -205,6 +267,8 @@ func _headbutt_hit(spec: Dictionary) -> void:
 	query.transform = Transform3D(Basis(), dome)
 	query.exclude = [get_rid()]
 	var kick: float = spec.get("kick", 6.5)
+	var bonus := FINISHER_BONUS if _is_finisher else {"stop": 1.0, "shake": 1.0, "kick": 1.0}
+	kick *= float(bonus["kick"])
 	var landed := false
 	for hit in get_world_3d().direct_space_state.intersect_shape(query, 16):
 		var body: Object = hit.collider
@@ -217,12 +281,12 @@ func _headbutt_hit(spec: Dictionary) -> void:
 			body.take_headbutt(dir * kick + Vector3.UP * kick * float(spec.get("up", 0.35)))
 			landed = true
 	if landed:
-		_hitstop_left = spec.get("stop", 0.05)
+		_hitstop_left = spec.get("stop", 0.05) * float(bonus["stop"])
 		hitstop_count += 1
 		_anim.speed_scale = 0.0
 		var cam := get_viewport().get_camera_3d()
 		if cam and cam.has_method("add_shake"):
-			cam.add_shake(spec.get("shake", 0.1))
+			cam.add_shake(spec.get("shake", 0.1) * float(bonus["shake"]))
 
 
 func _base_anim_speed() -> float:
@@ -258,6 +322,10 @@ func _on_animation_finished(anim_name: StringName) -> void:
 	if _state == State.ACTION and anim_name == _current_action:
 		_state = State.MOVE
 		_current_action = ""
+		if combo_step != 0:
+			combo_step = 0
+			_is_finisher = false
+			combo_changed.emit(0)
 		_visual_spin = 0.0
 		_model.rotation.y = PI
 		velocity.x = 0.0
@@ -276,7 +344,21 @@ func _root_yaw() -> float:
 	return atan2(-v.x, -v.z)
 
 
-func _play(anim_name: String, blend := 0.15) -> void:
+## 동작 사이 섞는 시간. 걷기↔달리기↔대기는 부드럽게, 공격 끝 → 이동은 조금 빠르게.
+func _setup_blends() -> void:
+	_anim.playback_default_blend_time = 0.15
+	var loco := ["Idle", "Walk", "Run"]
+	for a in loco:
+		for b in loco:
+			if a != b:
+				_anim.set_blend_time(a, b, 0.22)
+	for act in _anim.get_animation_list():
+		if not act in loco:
+			for b in loco:
+				_anim.set_blend_time(act, b, 0.12)
+
+
+func _play(anim_name: String, blend := -1.0) -> void:
 	if _anim.current_animation != anim_name:
 		_anim.play(anim_name, blend)
 

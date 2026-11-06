@@ -182,7 +182,57 @@ func _process(delta: float) -> bool:
 			elif _t > 3.6:
 				_check(is_equal_approx(Engine.time_scale, 1.0), "sanjae ends after 3 real seconds")
 				_next()
-		7:  # 9시 마감: 시계를 8:59:58 로 돌려 마감 처리 확인
+		7:  # 콤보: 맞은 뒤 Space 를 다시 누르면 이어지고, 4타째는 피니시. 위+Space 는 돌진, 길게 누르면 피니시
+			var sub: int = _mark.get("csub", 0)
+			if sub == 0:
+				if not _mark.has("c_started"):
+					_mark.c_started = true
+					p.global_position = Vector3(-5.6, 0.05, 6.0)
+					p.global_rotation.y = 0.0
+					_mark.c_seq = []
+					_mark.c_t0 = _t
+					Input.action_press("attack")
+				else:
+					Input.action_release("attack")
+					# 새 동작이 시작된 순간(동작 시간이 되감긴 순간)만 기록한다
+					if p._current_action != "" and (_mark.c_seq.is_empty() or p._action_time < _mark.get("c_prev_t", 0.0)):
+						_mark.c_seq.append(str(p._current_action))
+					_mark.c_prev_t = p._action_time
+					_mark.c_max = maxi(_mark.get("c_max", 0), p.combo_step)
+					# 맞는 순간이 다 지나면 바로 다음 입력 (사람이 연타하는 것처럼)
+					if p._state == 1 and p._hits_done >= p.ATTACKS[p._current_action].hits.size() and not p._queued:
+						Input.action_press("attack")
+					if p._state == 0 and _t - _mark.c_t0 > 0.5:
+						var seq: Array = _mark.c_seq
+						_check(seq.size() == 4, "4-hit combo chains (%s)" % ", ".join(seq))
+						_check(seq.size() == 4 and seq[3] == RamPlayer.COMBO_FINISHER, "4th hit is the finisher")
+						_check(_mark.c_max == 4, "combo counter reaches 4 (%d)" % _mark.c_max)
+						_mark.csub = 1
+						_mark.c_t0 = _t
+			elif sub == 1:   # 위+Space = 돌진 공격
+				if _t - _mark.c_t0 < 0.05:
+					Input.action_press("move_forward")
+					Input.action_press("attack")
+				elif not _mark.has("dash_checked"):
+					_mark.dash_checked = true
+					Input.action_release("attack")
+					Input.action_release("move_forward")
+					_check(p._current_action == RamPlayer.DASH_ATTACK, "Up+Space is the charge attack (%s)" % p._current_action)
+				elif p._state == 0:
+					_mark.csub = 2
+					_mark.c_t0 = _t
+			elif sub == 2:   # Space 를 누른 채 있으면 피니시로 이어짐
+				if not _mark.has("hold_pressed"):
+					_mark.hold_pressed = true
+					Input.action_press("attack")
+				elif p._current_action == RamPlayer.COMBO_FINISHER and p.combo_step >= 2:
+					_mark.hold_ok = true
+				if p._state == 0 and _t - _mark.c_t0 > 0.3:
+					Input.action_release("attack")
+					_check(_mark.has("hold_ok"), "holding Space goes to the finisher")
+					_next()
+
+		8:  # 9시 마감: 시계를 8:59:58 로 돌려 마감 처리 확인
 			if _t < 0.05:
 				_main.clock.game_seconds = 9 * 3600 - 2.0
 			elif _t > 1.5:

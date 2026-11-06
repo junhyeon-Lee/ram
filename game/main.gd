@@ -11,6 +11,7 @@ var _clock_label: Label
 var _status_label: Label
 var _sanjae_bar: ProgressBar
 var _hp_bar: ProgressBar
+var _combo_label: Label
 var _ended := false
 
 
@@ -39,6 +40,7 @@ func _ready() -> void:
 	_build_hud()
 	player.sanjae_changed.connect(_on_sanjae_changed)
 	player.hp_changed.connect(func(hp: float) -> void: _hp_bar.value = hp)
+	player.combo_changed.connect(_on_combo_changed)
 
 
 func _process(_delta: float) -> void:
@@ -170,8 +172,13 @@ func _build_hud() -> void:
 	_status_label.text = "Arrive 08:50  |  Reach the stairs before 09:00"
 	box.add_child(_status_label)
 
+	_combo_label = Label.new()
+	_combo_label.add_theme_font_size_override("font_size", 34)
+	_combo_label.add_theme_color_override("font_color", Color(1.0, 0.82, 0.35))
+	box.add_child(_combo_label)
+
 	var help := Label.new()
-	help.text = "Arrows: move/turn   Space: headbutt   E: tail parry   Shift: backstep   R: Sanjae-vistan   F5: restart"
+	help.text = "Arrows: move/turn   Space: headbutt (again after hit: combo, hold: finisher, Up+Space: charge)   E: flip parry   Shift: backstep   R: Sanjae-vistan   F5: restart"
 	help.add_theme_font_size_override("font_size", 16)
 	box.add_child(help)
 
@@ -192,6 +199,10 @@ func _bar(parent: Control, label: String, col: Color) -> ProgressBar:
 	row.add_child(bar)
 	parent.add_child(row)
 	return bar
+
+
+func _on_combo_changed(step: int) -> void:
+	_combo_label.text = "COMBO x%d" % step if step >= 2 else ""
 
 
 func _on_sanjae_changed(gauge: float, active: bool) -> void:
