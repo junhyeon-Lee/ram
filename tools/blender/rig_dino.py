@@ -51,13 +51,17 @@ FPS = 30
 
 # ---------------------------------------------------------------- 뼈 위치 (build_dino.py 의 몸 비율에 맞춤)
 LEG_X = 0.20
+# build_dino.py 의 HEAD_LIFT 와 같아야 한다: 목을 세워 머리 쪽이 이만큼 올라가 있다
+HEAD_LIFT = Vector((0, 0.03, 0.18))
+NECK_END = tuple(Vector((0, -0.44, 0.97)) + HEAD_LIFT)
+HEAD_TIP = tuple(Vector((0, -1.00, 0.97)) + HEAD_LIFT)
 BONES = {
     # 이름: (머리, 꼬리, 부모, 부모에 붙임)
     "root":   ((0, 0, 0), (0, 0.3, 0), None, False),
     "pelvis": ((0, 0.22, 0.80), (0, 0.0, 0.80), "root", False),
     "spine":  ((0, 0.0, 0.80), (0, -0.26, 0.88), "pelvis", True),
-    "neck":   ((0, -0.26, 0.88), (0, -0.44, 0.97), "spine", True),
-    "head":   ((0, -0.44, 0.97), (0, -1.00, 0.97), "neck", True),
+    "neck":   ((0, -0.26, 0.88), NECK_END, "spine", True),
+    "head":   (NECK_END, HEAD_TIP, "neck", True),
     "tail.1": ((0, 0.30, 0.84), (0, 0.74, 0.90), "pelvis", False),
     "tail.2": ((0, 0.74, 0.90), (0, 1.01, 0.87), "tail.1", True),
     "tail.3": ((0, 1.01, 0.87), (0, 1.30, 0.80), "tail.2", True),

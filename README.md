@@ -9,7 +9,7 @@
 
 - 설계 결정: [`docs/design.md`](docs/design.md) (원본 문서: https://claude.ai/artifact/84osqWgQkDQugsrKgKLPxC)
 - 엔진: Godot 4 · 플랫폼: Windows PC
-- 아트: 로우폴리 + 단색 면 + 약한 명암
+- 아트: 로우폴리 + 단색 면 + 약한 명암 (주인공 돌머리만 매끈)
 
 ## 폴더
 
@@ -67,6 +67,7 @@ Windows 에서는 `tools/setup_windows.ps1` 내용을 PowerShell 에 붙여 넣�
 | `tools/godot/setup_input.gd` | 키 배치를 `project.godot` 에 써 넣는 스크립트 |
 | `tools/godot/smoke_test.gd` | 헤드리스 자동 점검: `godot --headless --path . --fixed-fps 120 --script tools/godot/smoke_test.gd` |
 | `tools/godot/capture_frame.gd` | 화면 확인: 창을 몇 초 띄워 N 프레임 뒤 화면을 PNG 로 저장. `godot --path . --resolution 960x540 --script tools/godot/capture_frame.gd -- out.png [프레임]` |
+| `tools/godot/compare_models.gd` | 디자인 전·후 비교: GLB 여러 개를 같은 크기·조명으로 3/4 앞·옆·뒤·게임 카메라·3/4 뒤·얼굴 6각도 찍어 한 장으로. `godot --path . --resolution 420x420 --script tools/godot/compare_models.gd -- out.png 이름=a.glb 이름=b.glb@0,0.03,0.18 [--game]` |
 
 ## 주인공 모델 다시 만들기
 
@@ -142,5 +143,6 @@ python -m venv .venv
 | Godot | 4.7 프로젝트, 시험용 층에서 이동·박치기·패링·백스텝·산재비스탄·9시 시계, 헤드리스 자동 점검 |
 | 모션·전투 | 걷기·달리기 새로 짬, 박치기 4종 번갈아 쓰기, 공중제비 패링, 히트스톱·화면 흔들림, 콤보 1차 초안, 발 IK, 합성 효과음·파편 (`docs/design.md` '모션·전투 다듬기') |
 | Windows PC | 바탕화면\home\ram 에 저장소, Godot 4.7.2 세팅. 카메라가 벽에 막히면 벽 안쪽으로 당김(F5 첫 화면이 뒷벽 바깥면만 보이던 것), 화면 캡처 도구, 줄 끝 LF 고정(`.gitattributes`) |
+| 뒷모습 | 목을 세워 머리를 0.18m 올림(뒤에서 머리가 어깨에 가리던 것), 돌머리만 매끈하게, 돌기를 뒤쪽으로 모음, 배 색을 몸통 아래로만, 눈 판 묻기, 등 줄무늬 어둡게(0.30). 나란히 비교 도구 (`docs/design.md` '주인공 디자인 규칙') |
 
 자세한 변경은 `git log` 에 있다.

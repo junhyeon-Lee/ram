@@ -29,6 +29,7 @@ python -m venv .venv && .venv/bin/pip install bpy pillow   # bpy 는 Python 3.13
 ## 디자인을 바꿀 때
 
 - `docs/design.md` 의 "주인공 디자인 규칙"을 먼저 읽는다. 돌머리·눈은 사용자와 여러 번 맞춘 결과다.
-- 바꾸기 전과 후를 나란히 렌더해 보여 주고(얼굴 확대 + 옆모습), 고른 것만 반영한다. 시안은 저장소 밖에서 만든다.
+- 바꾸기 전과 후를 나란히 렌더해 보여 주고(얼굴 확대 + 옆모습 + 뒤·게임 카메라), 고른 것만 반영한다. 시안은 저장소 밖에서 만든다. 나란히 찍기는 `tools/godot/compare_models.gd`(`--game` 이면 게임 조명).
+- 머리 위치를 바꾸면 `build_dino.py` 와 `rig_dino.py` 의 `HEAD_LIFT` 를 같이 고친다(뼈 위치가 따라가야 한다).
 - 두개도스·램펄드 등 기존 캐릭터 디자인을 그대로 따라 만들지 않는다.
 - `bmesh` 는 `bpy` 다음에 import 한다.

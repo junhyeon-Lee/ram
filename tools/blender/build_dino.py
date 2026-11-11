@@ -6,7 +6,8 @@
 좌표: Blender 기준 Z 위, 캐릭터 정면은 -Y. 단위는 미터(키 약 1.35m).
 만드는 법: 몸통·목·머리·돌머리·꼬리·다리를 타원체로 겹쳐 놓고 복셀 리메시로
 한 덩어리로 녹인 뒤 면 수를 줄여(Decimate) 각진 로우폴리 느낌을 낸다.
-돌머리는 몸과 한 덩어리이고 색(재질)으로만 구분한다.
+돌머리는 몸과 한 덩어리이고 색(재질)으로만 구분한다. 돌머리 면만 매끈한 음영(나머지는 각진 면).
+목은 위로 세워 머리를 어깨 위로 올린다(HEAD_LIFT). 뒤(게임 카메라)에서 머리가 어깨에 가리지 않게.
 눈(반달 동심원)·돌머리 돌기·발톱은 따로 만든 조각이며, 눈과 혹은 몸 겉면을 레이캐스트해 붙인다.
 
 색: 바탕은 회색·검정. "accent" 슬롯(등 줄무늬·혹)은 빌드에 따라 게임에서 바꿀 색이다.
@@ -25,7 +26,7 @@ os.makedirs(OUT, exist_ok=True)
 # ---------------------------------------------------------------- 색 (sRGB)
 PALETTE = {
     "body":   (0.22, 0.22, 0.24),   # 차콜
-    "accent": (0.40, 0.40, 0.43),   # 빌드 색 자리(기본은 밝은 회색)
+    "accent": (0.30, 0.30, 0.32),   # 빌드 색 자리(기본 회색). 0.40 은 게임 조명에서 등이 얼룩말처럼 밝게 떴다
     "belly":  (0.52, 0.52, 0.54),   # 밝은 회색 배
     "dome":   (0.60, 0.58, 0.55),   # 잿빛: 몸과 어우러지면서 돌머리 모양은 읽히게
     "claw":   (0.85, 0.83, 0.78),
@@ -38,11 +39,15 @@ PALETTE = {
 # 머리 배율: 머리·주둥이·돌머리·눈·입선·돌기를 목 끝(HEAD_PIVOT) 기준으로 함께 키운다
 HEAD_PIVOT = Vector((0, -0.44, 0.97))
 HEAD_SCALE = 1.3
+# 목 세우기: 머리 쪽 전체를 위로 0.18m(뒤로 0.03m) 옮긴다. 목은 NECK_MID 를 지나 휘어 올라간다.
+# 예전엔 등·목·머리가 일자라 뒤에서 머리가 어깨에 가렸다. rig_dino.py 의 HEAD_LIFT 와 같아야 한다.
+HEAD_LIFT = Vector((0, 0.03, 0.18))
+NECK_MID = (0, -0.35, 0.99)
 
 
 def H(p):
-    """머리 쪽 좌표: 목 끝 기준으로 HEAD_SCALE 만큼 키운 위치."""
-    return tuple(HEAD_PIVOT + (Vector(p) - HEAD_PIVOT) * HEAD_SCALE)
+    """머리 쪽 좌표: 목 끝 기준으로 HEAD_SCALE 만큼 키우고 HEAD_LIFT 만큼 올린 위치."""
+    return tuple(HEAD_PIVOT + (Vector(p) - HEAD_PIVOT) * HEAD_SCALE + HEAD_LIFT)
 
 
 def HS(v):
@@ -99,7 +104,9 @@ def build_body():
     blob((0, 0.00, 0.78), (0.26, 0.38, 0.28), s)   # 몸통
     blob((0, -0.05, 0.68), (0.23, 0.28, 0.22), s)  # 배
     blob((0, 0.28, 0.82), (0.23, 0.25, 0.24), s)   # 엉덩이
-    chain([(0, -0.26, 0.88), (0, -0.44, 0.97)], [(0.17, 0.17, 0.18), (0.19, 0.17, 0.20)], s)  # 목 (큰 머리를 받치게 굵게)
+    # 목 (큰 머리를 받치게 굵게): 가운데 점을 곧은 선보다 살짝 앞·아래에 두어 목 앞쪽이 부드럽게 휜다
+    neck_end = tuple(HEAD_PIVOT + HEAD_LIFT)
+    chain([(0, -0.26, 0.88), NECK_MID, neck_end], [(0.17, 0.17, 0.18), (0.18, 0.17, 0.19), (0.19, 0.17, 0.20)], s)
     blob(H((0, -0.62, 1.00)), HS((0.20, 0.23, 0.19)), s)  # 머리
     # 주둥이: 넓은 뿌리 + 좁은 코끝 → 앞으로 갈수록 가늘어지는 뭉툭한 코
     blob(H((0, -0.76, 0.93)), HS((0.14, 0.09, 0.10)), s)  # 주둥이 뿌리
@@ -185,7 +192,8 @@ def paint_body(body, mats):
         # 눈 위 어두운 띠와 돌머리가 무늬처럼 나뉜다.
         if paint_dome_dist(c) < 1.15 and c.z > dome_rim_z(c.y):
             idx = 3
-        elif n.z < -0.3 and -1.2 < c.y < 0.45 and c.z > 0.35:
+        # 배 색은 몸통·목 아래로만. 허벅지 아랫면·엉덩이 밑까지 칠하면 뒤에서 반바지·기저귀처럼 보인다
+        elif n.z < -0.3 and -1.2 < c.y < 0.15 and c.z > 0.35 and not (c.z < 0.52 and abs(c.x) > 0.12):
             idx = 2
         elif n.z > 0.45 and -0.30 < c.y < 1.15 and c.z > 0.75:
             # 등 줄무늬: 굵은 띠 몇 개 (빌드 색)
@@ -280,8 +288,9 @@ def build_eye(body, side, parts):
     ya = out.cross(xa).normalized()
     if ya.dot(up) < 0:
         ya = -ya
-    # 곧은 선 쪽으로 반쯤 옮겨 눈 전체가 접점 둘레에 놓이게 한다
-    c = hit + xa * (RX * 0.45)
+    # 곧은 선 쪽으로 반쯤 옮겨 눈 전체가 접점 둘레에 놓이게 한다.
+    # 머리 안쪽으로 조금 묻는다: 평평한 판이라 둥근 머리 뒤쪽에서 가장자리가 겉면 밖으로 들떠 보였다
+    c = hit + xa * (RX * 0.45) - out * HS(0.012)
 
     def put(o):
         m = Matrix((xa, ya, out)).transposed().to_4x4()
@@ -294,7 +303,7 @@ def build_eye(body, side, parts):
         return o
 
     # (슬롯, 크기 비율, 바깥으로 올라온 높이) — 안쪽 층일수록 조금씩 더 튀어나와 겹쳐 보인다
-    layers = [("lid", 1.00, 0.010), ("sclera", 0.82, 0.014), ("iris", 0.60, 0.018), ("pupil", 0.34, 0.022)]
+    layers = [("lid", 1.00, 0.012), ("sclera", 0.82, 0.014), ("iris", 0.60, 0.016), ("pupil", 0.34, 0.018)]
     for slot, k, h in layers:
         # 안쪽 층은 살짝 뒤로: 곧은 앞선에도 검은 테두리 선이 보이게
         dx = 0.0 if slot == "lid" else HS(-0.007)
@@ -303,14 +312,15 @@ def build_eye(body, side, parts):
 
 def build_parts(body):
     parts = {k: [] for k in ("accent", "claw", "sclera", "iris", "pupil", "lid")}
-    # 돌머리 뒤쪽 테두리 혹 (빌드 색)
+    # 돌머리 뒤쪽 테두리 혹 (빌드 색): 뒤쪽 ±55° 안에 9개, 겉면 법선보다 뒤·위로 세운다.
+    # ±80° 로 펼치면 양 끝이 옆을 향해 뒤에서 고양이 귀·왕관처럼 보였다
     for i in range(9):
-        a = math.radians(-80 + i * (160 / 8))
+        a = math.radians(-55 + i * (110 / 8))
         y = DOME_C.y + DOME_R.y * 0.92 * math.cos(a)
         z = dome_rim_z(y) - 0.005
         origin = (0.6 * math.sin(a), DOME_C.y + 0.6 * math.cos(a), z)
         hit, nrm = surface_hit(body, origin, (0, DOME_C.y, z))
-        parts["accent"].append(cone(f"Knob{i}", hit - nrm * HS(0.012), HS(0.042), HS(0.115), nrm + Vector((0, 0, 0.5)), verts=5))
+        parts["accent"].append(cone(f"Knob{i}", hit - nrm * HS(0.012), HS(0.042), HS(0.115), nrm + Vector((0, 0.6, 0.6)), verts=5))
     # 입선: 코끝 아래에서 뒤로 짧게 (눈 테두리와 같은 색)
     for s in (-1, 1):
         pts = []
@@ -396,7 +406,7 @@ VIEWS = {
     "side":    ((0, 0.05, 0.72), (-4.4, 0.25, 0.95), 50),
     "front":   ((0, 0.05, 0.72), (0.0, -4.4, 1.0), 50),
     "back34":  ((0, 0.05, 0.72), (2.8, 3.6, 1.8), 50),
-    "face":    ((0, -0.80, 1.04), (-1.20, -2.05, 1.28), 60),
+    "face":    ((0, -0.77, 1.22), (-1.20, -2.02, 1.46), 60),   # HEAD_LIFT 만큼 올린 얼굴
 }
 
 
@@ -418,6 +428,11 @@ def main():
     bpy.ops.object.join()
     dino = bpy.context.active_object
     dino.name = "Dino"
+    # 돌머리만 매끈한 음영: 각진 면이 호두처럼 보여서. 경계(톱니)는 옆 면이 각져 있어 그대로 또렷하다
+    dome_idx = [m.name for m in dino.data.materials].index("dome")
+    for p in dino.data.polygons:
+        if p.material_index == dome_idx:
+            p.use_smooth = True
 
     tris = sum(len(p.vertices) - 2 for p in dino.data.polygons)
     print(f"[dino] triangles: {tris}")
