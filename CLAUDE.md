@@ -21,10 +21,15 @@ python -m venv .venv && .venv/bin/pip install bpy pillow   # bpy 는 Python 3.13
 - 화면을 눈으로 확인할 때는 `tools/godot/capture_frame.gd` 로 캡처한다(헤드리스는 그리지 않는다).
 - 게임 코드를 바꾸면 헤드리스 점검을 돌려 `SMOKE TEST: PASS` 를 확인한다:
   `godot --headless --path . --fixed-fps 120 --script tools/godot/smoke_test.gd`
+- 출근길 장면(`game/commute/`)을 바꾸면 `tools/godot/commute_test.gd` 도 돌려 `COMMUTE TEST: PASS` 를 확인한다. 장면 모델을 바꾸면 `tools/blender/build_commute.py export assets/environments/commute/commute.glb`, `tools/blender/build_home.py export assets/environments/home/home.glb` 로 다시 내보낸다(집은 같은 폴더에 `egg.glb` — 아래 껍질 `EggBase` + 조각 `Shard_NN` — 도 같이 나온다. 게임 코드의 위치 상수 — 회사 정문 `TOWER_Y`, 광장 `PLAZA`, 알 자리 `EGG_POS`, 걸을 수 있는 영역 `WALK_RECTS`·직원 자리 `NPCS` — 와 어긋나면 안 된다).
 - 키 배치를 바꾸면 `tools/godot/setup_input.gd` 를 고치고 다시 돌린다(`project.godot` 를 손으로 고치지 않는다).
 - Ram 모델은 +Z 를 보고 들어온다(플레이어에서 180° 돌림). 동작 속 root 뼈 회전은 Godot root motion 회전값 대신 `_root_yaw()` 로 읽는다(180° 에서 값이 튐).
 - `.import`·`.uid` 파일은 커밋한다. `.godot/` 는 커밋하지 않는다.
 - 걷기·달리기 동작을 바꾸면 `tools/godot/measure_feet.gd` 로 발 속도를 다시 재서 `player.gd` 의 `RUN_FOOT_SPEED`·`WALK_FOOT_SPEED` 를 고친다.
+
+## 동작을 바꿀 때
+
+- `.claude/skills/ram-motion` 스킬을 먼저 읽는다(뼈·축 규칙, 만들기 → GIF·프레임 시트 확인 → 게임 연결 순서, 함정).
 
 ## 디자인을 바꿀 때
 

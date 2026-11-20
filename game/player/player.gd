@@ -2,6 +2,8 @@
 ## 방향키: 위·아래 앞뒤 이동, 좌우 몸 돌리기 (카메라가 따라 돈다)
 ## Space 박치기(4종 번갈아, 맞은 뒤 다시 누르면 콤보, 길게 누르면 피니시, 위+Space 돌진)
 ## E 공중제비 꼬리 패링 · Shift 백스텝 · R 산재비스탄(시간 감속)
+## 자유 이동(free_move, 집·출근길 장면): 방향키가 화면 기준 여덟 방향 달리기가 된다.
+##   방향키+Space 돌진, 방향키+Shift 그 방향으로 대시, Shift 만 누르면 백스텝. 나머지는 같다.
 class_name RamPlayer
 extends CharacterBody3D
 
@@ -11,10 +13,15 @@ signal combo_changed(step: int)
 
 const RAM_SCENE := preload("res://assets/characters/ram/ram_rigged.glb")
 
-@export var forward_speed := 3.2      # m/s
+@export var forward_speed := 3.5      # m/s
 @export var back_speed := 1.8
 @export var turn_speed_deg := 150.0   # 도/초
 @export var gravity := 20.0
+
+var free_move := false                 # 화면 기준 자유 이동 (끄면 돌기 + 앞뒤)
+var screen_forward := Vector3.FORWARD  # 자유 이동에서 '위' 키가 가리키는 수평 방향
+var input_enabled := true              # 끄면 조작을 받지 않고 서 있는다 (하던 동작은 끝까지 한다)
+const FREE_TURN := 14.0                # 자유 이동에서 달리는 쪽으로 몸을 돌리는 빠르기
 
 # 박치기 4종: Space 를 누를 때마다 넷이 겹치지 않게 번갈아 나온다 (docs/references/motion.md)
 const ATTACK_VARIANTS := ["Attack_RearSlam", "Attack_LowCharge", "Attack_FlankButt", "Attack_Shove"]
@@ -44,7 +51,9 @@ const HIT_RADIUS := 0.75              # 돌머리 둘레 판정 반지름
 
 # 애니메이션 속 디딘 발이 땅을 미는 속도 (tools/godot/measure_feet.gd 로 잼). 동작을 바꾸면 다시 잰다.
 # 이동 속도에 맞춰 재생 속도를 바꿔 발이 미끄러지지 않게 한다.
-const RUN_FOOT_SPEED := 4.14
+# 달리기는 '땅 가까이 평균'(4.4~4.7)을 쓴다. 가장 낮은 순간의 중앙값(4.14)은 한 걸음의 10% 뿐이라,
+# 그 값에 맞추면 다리가 몸보다 빨라 보인다("걷는 모션보다 움직임이 느린 느낌").
+const RUN_FOOT_SPEED := 4.5
 const WALK_FOOT_SPEED := 1.41
 
 # 산재비스탄: 주변(과 9시 시계)을 느리게, Ram 은 그대로. 쓸 때마다 체력이 조금 깎인다(산재).
@@ -149,6 +158,71 @@ func _physics_process(delta: float) -> void:
 
 
 func _move(real_delta: float) -> void:
+	if not input_enabled:
+		velocity.x = 0.0
+		velocity.z = 0.0
+		_play("Idle")
+		_anim.speed_scale = _base_anim_speed()
+		return
+	var dir := Vector3.ZERO                       # 자유 이동에서 누르고 있는 방향
+	if free_move:
+		dir = _move_free(real_delta)
+	else:
+		_move_tank(real_delta)
+	var pushing := dir != Vector3.ZERO if free_move else Input.is_action_pressed("move_forward")
+
+	if Input.is_action_just_pressed("attack"):
+		combo_step = 1
+		_face(dir)
+		# 방향키(자유 이동이 아니면 위)+Space 는 돌진 공격, 그냥 Space 는 4종을 번갈아
+		_start_attack(DASH_ATTACK if pushing else _next_attack())
+	elif Input.is_action_just_pressed("backstep"):
+		_face(dir)
+		_start_action("Dash" if dir != Vector3.ZERO else "Backstep")
+	elif Input.is_action_just_pressed("guard"):
+		_start_action("Parry_Tail")
+	elif Input.is_action_just_pressed("sanjae"):
+		activate_sanjae()
+
+
+## 자유 이동: 누른 방향(화면 기준)으로 달리고 몸도 그쪽으로 돌린다. 누르고 있는 방향을 돌려준다.
+func _move_free(real_delta: float) -> Vector3:
+	var v := Input.get_vector("turn_left", "turn_right", "move_forward", "move_back")
+	var dir := screen_forward.cross(Vector3.UP) * v.x - screen_forward * v.y
+	if dir.length() < 0.1:
+		velocity.x = 0.0
+		velocity.z = 0.0
+		_play("Idle")
+		_anim.speed_scale = _base_anim_speed()
+		return Vector3.ZERO
+	dir = dir.normalized()
+	rotation.y = lerp_angle(rotation.y, atan2(-dir.x, -dir.z), 1.0 - exp(-FREE_TURN * real_delta))
+	velocity.x = dir.x * forward_speed
+	velocity.z = dir.z * forward_speed
+	_play("Run")
+	_anim.speed_scale = _base_anim_speed() * forward_speed / RUN_FOOT_SPEED
+	return dir
+
+
+## 몸(정면 -Z)을 수평 방향 dir 로 바로 돌린다
+func _face(dir: Vector3) -> void:
+	if dir != Vector3.ZERO:
+		rotation.y = atan2(-dir.x, -dir.z)
+
+
+## 연출용: 장면이 몸을 직접 움직이는 동안(physics 를 꺼 둔 동안) 동작만 튼다
+func play_clip(anim_name: String, from := 0.0) -> void:
+	_anim.speed_scale = 1.0
+	_anim.play(anim_name, 0.0)
+	_anim.seek(from, true)
+
+
+## 연출용: 겉모습만 키우거나 줄인다 (충돌 몸은 그대로)
+func set_model_scale(s: float) -> void:
+	_model.scale = Vector3.ONE * s
+
+
+func _move_tank(real_delta: float) -> void:
 	var turn := Input.get_axis("turn_right", "turn_left")
 	rotation.y += deg_to_rad(turn_speed_deg) * turn * real_delta
 
@@ -171,17 +245,6 @@ func _move(real_delta: float) -> void:
 	else:
 		_play("Idle")
 		_anim.speed_scale = _base_anim_speed()
-
-	if Input.is_action_just_pressed("attack"):
-		combo_step = 1
-		# 위+Space 는 돌진 공격, 그냥 Space 는 4종을 번갈아
-		_start_attack(DASH_ATTACK if Input.is_action_pressed("move_forward") else _next_attack())
-	elif Input.is_action_just_pressed("backstep"):
-		_start_action("Backstep")
-	elif Input.is_action_just_pressed("guard"):
-		_start_action("Parry_Tail")
-	elif Input.is_action_just_pressed("sanjae"):
-		activate_sanjae()
 
 
 func _start_action(anim_name: String, blend := 0.05) -> void:

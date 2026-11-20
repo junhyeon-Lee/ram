@@ -19,11 +19,15 @@
 | `tools/blender/rig_dino.py` | 모델에 뼈대·가중치·기본 동작을 넣는 스크립트 |
 | `tools/blender/preview_anims.py` | 동작마다 미리보기 GIF 를 만드는 스크립트 |
 | `tools/blender/build_helpers.py` | 조력자 4인 첫 디자인 모델 스크립트 |
+| `tools/blender/build_commute.py` | 출근길 장면(돌 이글루 마을 → 9층 회사). `export` 로 게임용 모델, `start`·`arrive` 로 확인용 렌더 |
+| `tools/blender/build_home.py` | 집 안 장면(돌 이글루 방). `export` 로 게임용 모델, `stone`·`warm`·`cold` 로 확인용 렌더 |
+| `assets/environments/` | 장면 모델: `commute/commute.glb` 출근길, `home/home.glb` 집 안 |
 | `project.godot`, `game/` | Godot 4.7 프로젝트 (저장소 루트가 프로젝트 루트, `docs/`·`tools/` 는 `.gdignore` 로 제외) |
 | `assets/characters/ram/` | 주인공 모델. `dino.*` 정지 모델, `ram_rigged.*` 뼈대·동작 포함 (Godot 에는 `ram_rigged.glb`) |
 | `assets/characters/helpers/` | 조력자 모델 (`crane`·`sheep`·`catfish`·`flyfish` .glb/.blend) |
 | `docs/design.md` | 확정한 설계 결정 (스토리·하루의 흐름과 성장·건물·조작·카메라·디자인 규칙·산재비스탄·빌드와 조력자) |
 | `docs/renders/` | 렌더 사진: `latest/` 최신 · `checkpoint_01/` 첫 모델 · `helpers/` 조력자 · `explorations/` 비교 시안 |
+| `.claude/skills/ram-motion/` | Claude Code 스킬: Ram 동작을 만들고 고치는 순서와 함정. `scripts/gif_sheet.py` 는 동작 GIF 를 프레임 시트 한 장으로 펼친다 |
 
 ## Godot 에서 실행하기
 
@@ -52,6 +56,23 @@ Windows 에서는 `tools/setup_windows.ps1` 내용을 PowerShell 에 붙여 넣�
 
 ![시험용 층](docs/renders/latest/godot_test_floor.png)
 
+### 출근길 시험 장면
+
+집(돌 이글루 방)의 알을 깨고 나와 회사 정문까지 가는 장면. 알 깨기 2.2초, 그 뒤 곧장 달리면 10.5초쯤(집 안 4m + 바깥 길 31m, 3.5m/s). 저장소 폴더에서:
+
+`Godot_v4.7.2-stable_win64.exe --path . res://game/commute/commute.tscn`
+
+| 키 | 동작 |
+|---|---|
+| 방향키 | 화면 기준으로 자유 이동 (위 = 화면 안쪽, 바깥에서는 회사 쪽) |
+| Space | 박치기 (시험용 층과 같다: 번갈아 4종·콤보·길게 눌러 피니시). 방향키와 함께면 돌진 |
+| E | 공중제비 꼬리 패링 |
+| Shift | 방향키와 함께면 그 방향으로 대시, 혼자면 백스텝 |
+| R | 산재비스탄 |
+| F5 | 다시 시작 |
+
+Ram 은 시험용 층과 같은 플레이어(`game/player/player.gd`)를 자유 이동(`free_move`)으로 켜서 쓴다. 시작하면 Ram 이 통째로 들어가는 큰 알(높이 2.6m)이 세 번 흔들리다 금이 가고, Ram 이 박치기로 깨고 튀어나와 알 옆에 내려선다. 위쪽은 큼직한 조각 여섯으로 갈라진다. 아래쪽 껍질은 잠자리로 남고 조각은 바닥에 떨어졌다가 사라진다. 집 안에서는 방 안을 자유롭게 돌아다닌다(벽·알 껍질에 막힌다). 카메라는 한 자리에 서서 Ram 쪽으로 고개만 돌린다. 현관 굴로 나가면 화면이 잠깐 어두워졌다가 집 문 앞으로 이어진다. 바깥에서는 길 영역(집 문 앞 샛길 · 마을 돌길 · 회사 광장 가운데 보도) 안에서 자유롭게 움직이고, 경계석 밖과 길 위의 직원은 지나가지 못한다. 바깥 카메라는 주택가에서는 등 뒤에 가깝고 낮게 붙어 있다가, 주택가와 회사 광장의 경계부터 위로 올라가며 크게 줌 아웃한다. 정문에 닿았을 때는 건물 꼭대기 위로 하늘까지 보인다(높이 16m·뒤 30m). 정문에 닿으면 도착. 점검: `godot --headless --path . --fixed-fps 120 --script tools/godot/commute_test.gd` → `COMMUTE TEST: PASS`
+
 플레이 녹화: [`docs/renders/latest/godot_test_floor.mp4`](docs/renders/latest/godot_test_floor.mp4), 박치기 4종·공중제비 패링: [`docs/renders/latest/godot_attacks_parry.mp4`](docs/renders/latest/godot_attacks_parry.mp4), 콤보·파편·소리: [`docs/renders/latest/godot_combo_fx.mp4`](docs/renders/latest/godot_combo_fx.mp4)
 
 | 파일 | 내용 |
@@ -67,11 +88,15 @@ Windows 에서는 `tools/setup_windows.ps1` 내용을 PowerShell 에 붙여 넣�
 | `tools/godot/setup_input.gd` | 키 배치를 `project.godot` 에 써 넣는 스크립트 |
 | `tools/godot/smoke_test.gd` | 헤드리스 자동 점검: `godot --headless --path . --fixed-fps 120 --script tools/godot/smoke_test.gd` |
 | `tools/godot/capture_frame.gd` | 화면 확인: 창을 몇 초 띄워 N 프레임 뒤 화면을 PNG 로 저장. `godot --path . --resolution 960x540 --script tools/godot/capture_frame.gd -- out.png [프레임]` |
+| `game/commute/commute.gd` | 집·출근길 시험 장면: 알 깨기, 자유 이동과 걸을 수 있는 영역, 광장 경계부터 물러나는 카메라, 도착 판정 |
+| `tools/godot/commute_test.gd` | 집·출근길 헤드리스 자동 점검 |
+| `tools/blender/build_home.py` · `build_commute.py` | 집(돌 이글루 방 + 알)과 출근길(마을·광장·회사) 장면을 만들고 게임용 GLB 로 내보냄 |
+| `docs/audit/2026-11-20/` | 냉정한 평가 기록: 기준·점수·살아남은 지적(README), 평가자 보고서, 증거 화면, 측정 스크립트 |
 | `tools/godot/compare_models.gd` | 디자인 전·후 비교: GLB 여러 개를 같은 크기·조명으로 3/4 앞·옆·뒤·게임 카메라·3/4 뒤·얼굴 6각도 찍어 한 장으로. `godot --path . --resolution 420x420 --script tools/godot/compare_models.gd -- out.png 이름=a.glb 이름=b.glb@0,0.03,0.18 [--game]` |
 
 ## 주인공 모델 다시 만들기
 
-Blender 없이 파이썬 모듈 `bpy`로 돌린다 (bpy 5.2 는 Python 3.13 필요).
+Blender 없이 파이썬 모듈 `bpy`로 돌린다 (bpy 5.2 이상은 Python 3.13 필요. 회사 PC 는 5.3).
 
 ```bash
 python -m venv .venv
@@ -137,12 +162,15 @@ python -m venv .venv
 | 체크포인트 1 | 첫 주인공 모델: 돌머리 한 덩어리, 반달 동심원 눈, 짧은 주둥이와 입선, 차콜 바탕 + 빌드 색 슬롯 (`docs/renders/checkpoint_01/`) |
 | 비율 | 주둥이 가시 제거, 머리 쪽 1.3배(`HEAD_SCALE`), 기둥형 다리 + 가는 발목 + 넓은 발(`LEG_X`), 팔 굵게, 꼬리 짧고 굵게 |
 | 돌머리 | 테두리부터 위로 좁아지게, 꼭대기 낮춤, 체크포인트 1의 톱니 경계 무늬 유지(`PAINT_DOME_*`), 잿빛 |
-| 뼈대·동작 | 뼈 18개, 동작 11개 (`ram_rigged.glb`), 동작 GIF |
+| 뼈대·동작 | 뼈 18개, 동작 15개 (`ram_rigged.glb`, 처음에는 11개), 동작 GIF |
 | 조력자 | 두루미·양·메기·날치 첫 디자인 |
 | 기획 | 스토리 'Ram은 쉬고 싶다'(회사 편), 하루의 흐름과 두 갈래 성장, 시계 2배속, 9층 인사팀 따귀 이벤트, 산재비스탄, 사이버웨어 개조 (`docs/design.md`) |
 | Godot | 4.7 프로젝트, 시험용 층에서 이동·박치기·패링·백스텝·산재비스탄·9시 시계, 헤드리스 자동 점검 |
 | 모션·전투 | 걷기·달리기 새로 짬, 박치기 4종 번갈아 쓰기, 공중제비 패링, 히트스톱·화면 흔들림, 콤보 1차 초안, 발 IK, 합성 효과음·파편 (`docs/design.md` '모션·전투 다듬기') |
 | Windows PC | 바탕화면\home\ram 에 저장소, Godot 4.7.2 세팅. 카메라가 벽에 막히면 벽 안쪽으로 당김(F5 첫 화면이 뒷벽 바깥면만 보이던 것), 화면 캡처 도구, 줄 끝 LF 고정(`.gitattributes`) |
+| 출근길 | 돌 이글루 마을에서 9층 회사까지 곧은 길 장면(Blender 스크립트), 직접 달려 보는 시험 장면과 자동 점검 |
+| 집·알 | 집의 큰 알을 깨고 나오며 시작, 집 안·길 영역 자유 이동, 박치기·패링·대시·백스텝, 달리기 3.5m/s |
+| 평가 | 독립 평가자 넷 + 반박 검증: 100점 중 약 35점 (`docs/audit/2026-11-20/`) |
 | 뒷모습 | 목을 세워 머리를 0.18m 올림(뒤에서 머리가 어깨에 가리던 것), 돌머리만 매끈하게, 돌기를 뒤쪽으로 모음, 배 색을 몸통 아래로만, 눈 판 묻기, 등 줄무늬 어둡게(0.30). 나란히 비교 도구 (`docs/design.md` '주인공 디자인 규칙') |
 
 자세한 변경은 `git log` 에 있다.
