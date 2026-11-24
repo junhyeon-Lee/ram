@@ -60,13 +60,13 @@ func _process(delta: float) -> bool:
 			var cam3: FollowCamera = _main.get_node("Camera")
 			_mark.max_shake = maxf(_mark.get("max_shake", 0.0), cam3.shake)
 			if vi == -1:
-				# Space 를 누르면 네 가지 중 하나가 나온다
+				# Space 를 누르면 늘 콤보 문장의 첫 타가 나온다 (무작위가 아니다)
 				if _t < 0.05:
 					Input.action_press("attack")
 				elif not _mark.has("space_checked"):
 					_mark.space_checked = true
 					Input.action_release("attack")
-					_check(p._current_action in variants, "Space plays one of the 4 headbutts (%s)" % p._current_action)
+					_check(p._current_action == RamPlayer.COMBO_CHAIN[0], "Space always opens with the same headbutt (%s)" % p._current_action)
 				elif p._state == 0 and _t > 0.3:
 					_mark.vi = 0
 					_mark.v_start = _t
@@ -91,30 +91,14 @@ func _process(delta: float) -> bool:
 					_mark.v_start = _t
 			else:
 				for r in _mark.results:
-					var want := "breaks the desk (3 hits)" if r[0] == "Attack_Shove" else "hits the desk"
-					var ok: bool = r[1] == 99 if r[0] == "Attack_Shove" else r[1] >= 1
+					# 밀어붙이기는 세 번 맞는다. 가벼운 타 셋으로는 부서지지 않는다(집기는 4 를 버틴다)
+					var want := "hits the desk three times" if r[0] == "Attack_Shove" else "hits the desk"
+					var ok: bool = r[1] == 3 if r[0] == "Attack_Shove" else r[1] >= 1
 					_check(ok, "%s %s (hits=%s)" % [r[0], want, "broken" if r[1] == 99 else str(r[1])])
 				_check(p.hitstop_count - _mark.hitstops >= 4, "hitstop on every landed hit (%d)" % (p.hitstop_count - _mark.hitstops))
 				_check(_mark.max_shake > 0.05, "camera shakes on impact (max %.2f)" % _mark.max_shake)
 				_check(ImpactFx.spawned >= 4, "impact debris spawns on hits (%d)" % ImpactFx.spawned)
 				_check(Sfx.thud().get_length() > 0.2 and Sfx.whoosh().get_length() > 0.15, "synth sounds are built (thud %.2fs, whoosh %.2fs)" % [Sfx.thud().get_length(), Sfx.whoosh().get_length()])
-				# 번갈아 쓰기: 연달아 같은 박치기가 없고, 네 번마다 네 가지가 다 나온다
-				var seq: Array = []
-				p._attack_bag.clear()   # 한 바퀴 경계에 맞춰 검사
-				for i in 16:
-					seq.append(p._next_attack())
-				var no_repeat := true
-				for i in range(1, seq.size()):
-					if seq[i] == seq[i - 1]:
-						no_repeat = false
-				var all_four := true
-				for k in range(0, 16, 4):
-					var chunk := {}
-					for x in seq.slice(k, k + 4):
-						chunk[x] = true
-					if chunk.size() != 4:
-						all_four = false
-				_check(no_repeat and all_four, "attacks rotate: no back-to-back repeat, all 4 every 4 presses")
 				_next()
 		4:  # 백스텝: 뒤(+Z)로 약 0.65m
 			if _t < 0.05:
@@ -206,7 +190,7 @@ func _process(delta: float) -> bool:
 						Input.action_press("attack")
 					if p._state == 0 and _t - _mark.c_t0 > 0.5:
 						var seq: Array = _mark.c_seq
-						_check(seq.size() == 4, "4-hit combo chains (%s)" % ", ".join(seq))
+						_check(seq == RamPlayer.COMBO_CHAIN, "4-hit combo follows the fixed sentence (%s)" % ", ".join(seq))
 						_check(seq.size() == 4 and seq[3] == RamPlayer.COMBO_FINISHER, "4th hit is the finisher")
 						_check(_mark.c_max == 4, "combo counter reaches 4 (%d)" % _mark.c_max)
 						_mark.csub = 1
@@ -281,7 +265,132 @@ func _process(delta: float) -> bool:
 				_check(_mark.len_err < 0.01, "IK keeps leg lengths (max error %.4fm)" % _mark.len_err)
 				_next()
 
-		9:  # 9시 마감: 시계를 8:59:58 로 돌려 마감 처리 확인
+		9:  # 조작감: 동작 중에 누른 입력을 기억했다가 내보내고, 박치기 회복 구간을 Shift·방향키로 끊는다
+			var q: int = _mark.get("q", 0)
+			if not _mark.has("q_t0"):
+				_mark.q_t0 = _t
+				_mark.q_flags = {}
+				# 헛치는 검사는 책상이 없는 뒤쪽 빈자리에서, 뒷벽을 보고 한다
+				p.global_position = Vector3(2.0, 0.05, 9.0)
+				p.global_rotation.y = PI
+				if q == 4:
+					p.global_position = Vector3(5.6, 0.05, 2.0)
+					p.global_rotation.y = 0.0
+					_main._breakable("FeelDesk", Vector3(1.4, 0.9, 0.8), Vector3(5.6, 0.45, 0.5), Color(0.6, 0.5, 0.4))
+					p.combo_step = 1
+					p._start_attack("Attack_RearSlam")
+				elif q == 3:
+					p.combo_step = 1
+					p._start_attack(RamPlayer.DASH_ATTACK, true)        # 돌진(날리는 타)은 방향키로 풀려난다
+				elif q == 8:
+					p.combo_step = 1
+					p._start_attack(RamPlayer.COMBO_CHAIN[0])            # 연타 첫 타는 방향키로 풀려나지 않는다
+				elif q >= 5:
+					# 콤보 구조: 책상을 1.25m 앞에 두고 친다 (판마다 다른 자리 — 앞 판의 Ram 자리와 겹치지 않게)
+					var spot: Vector3 = [Vector3(-4.0, 0.05, 9.0), Vector3(4.0, 0.05, 9.0), Vector3(0.0, 0.05, 9.5)][q - 5]
+					p.global_position = spot
+					p.global_rotation.y = 0.0
+					_main._breakable("ComboDesk%d" % q, Vector3(1.4, 0.9, 0.8), Vector3(spot.x, 0.45, spot.z - 1.25), Color(0.6, 0.5, 0.4))
+					_mark.q_desk = _main.get_node("ComboDesk%d" % q)
+					_mark.q_desk_pos = _mark.q_desk.global_position
+					_mark.q_hitstops = p.hitstop_count
+					_mark.q_hud = 0
+					if q >= 6:
+						p.combo_step = 1
+						p._start_attack("Attack_FlankButt" if q == 6 else "Attack_LowCharge", q == 7)
+				else:
+					p._start_action("Backstep" if q < 2 else "Attack_LowCharge")
+			var tq: float = _t - float(_mark.q_t0)
+			var fl: Dictionary = _mark.q_flags
+			var q_done: bool = fl.has("done")   # 검사는 한 번만 하고, 하던 동작이 끝나기를 기다린다
+			match q if not q_done else -1:
+				0:  # 백스텝(0.67초)이 끝나기 0.1초 전에 누른 Space → 끝나자마자 박치기
+					_tap("attack", tq, 0.56, fl)
+					if tq > 0.80:
+						_check(p._current_action in RamPlayer.ATTACK_VARIANTS, "Space pressed 0.1s before a backstep ends comes out when it ends (%s)" % p._current_action)
+						q_done = true
+				1:  # 너무 일찍(끝나기 0.47초 전) 누른 Space 는 잊는다
+					_tap("attack", tq, 0.20, fl)
+					if tq > 0.80:
+						_check(p._state == 0, "Space pressed too early is forgotten (state %d)" % p._state)
+						q_done = true
+				2:  # 헛친 박치기(맞는 순간 0.33초, 전체 0.9초): 미리 누른 Shift 가 맞는 순간 3프레임 뒤에 회복을 끊는다
+					_tap("backstep", tq, 0.36, fl)
+					if tq > 0.50:
+						_check(p._current_action == "Backstep", "Shift cancels a whiffed headbutt's recovery (%s at 0.5s)" % p._current_action)
+						q_done = true
+				3:  # 헛친 돌진(날리는 타): 방향키를 누르고 있으면 맞는 순간 0.4초 뒤에 풀려난다
+					Input.action_press("move_forward")
+					if p._state == 0 or tq > 1.0:
+						Input.action_release("move_forward")
+						_check(tq > 0.70 and tq < 0.82, "holding a direction frees Ram 0.4s after a charge's hit moment (%.2fs, full 0.90s)" % tq)
+						q_done = true
+				8:  # 연타 첫 타는 방향키로 풀려나지 않는다 (다음 타나 회피로만 빠져나간다)
+					Input.action_press("move_forward")
+					if tq > 0.85:
+						Input.action_release("move_forward")
+						_check(p._state == 1, "a mid-combo headbutt is not cancelled by moving (still attacking at 0.85s)")
+						q_done = true
+				4:  # 히트스톱 중에 누른 Space 도 콤보로 이어진다
+					if p._hitstop_left > 0.0 and not fl.has("hs_down"):
+						fl.hs_down = true
+						Input.action_press("attack")
+					elif fl.has("hs_down") and not fl.has("hs_up"):
+						fl.hs_up = true
+						Input.action_release("attack")
+					_mark.q_combo = maxi(_mark.get("q_combo", 0), p.combo_step)
+					if tq > 1.0:
+						_check(fl.has("hs_down"), "the test desk is hit (hitstop seen)")
+						_check(_mark.q_combo >= 2, "Space pressed during hitstop continues the combo (combo %d)" % _mark.q_combo)
+						if _main.has_node("FeelDesk"):
+							_main.get_node("FeelDesk").queue_free()
+						q_done = true
+				5:  # 4타 콤보가 책상 하나에 네 번 다 맞고(첫 타가 날려 버리지 않는다), 피니시에서 부서진다
+					if tq < 2.4:
+						if _frame % 6 == 0:
+							Input.action_press("attack")
+						elif _frame % 6 == 3:
+							Input.action_release("attack")
+					else:
+						Input.action_release("attack")
+					_mark.q_hud = maxi(_mark.q_hud, p.combo_hits)
+					# 맞는 순간마다 돌머리가 몸에서 어느 쪽에 있는지 적는다 (Ram 기준 좌우·높이)
+					if not fl.has("heads"):
+						fl.heads = []
+					if p.hitstop_count - _mark.q_hitstops > fl.heads.size():
+						var head_at: Vector3 = p._skeleton.global_transform * p._skeleton.get_bone_global_pose(p._head_bone).origin
+						fl.heads.append(p.global_transform.affine_inverse() * head_at)
+					if tq > 2.6 and p._state == 0:
+						var landed: int = p.hitstop_count - _mark.q_hitstops
+						_check(landed == 4, "all 4 combo hits land on one desk (%d landed)" % landed)
+						var hs: Array = fl.heads
+						if hs.size() == 4:
+							# 등 뒤에서도 타마다 달라 보이게: 1타와 2타는 반대쪽, 3타는 위
+							_check(hs[0].x * hs[1].x < 0.0 and absf(hs[0].x) > 0.08 and absf(hs[1].x) > 0.08, "hits 1 and 2 swing to opposite sides (head x %.2f, %.2f)" % [hs[0].x, hs[1].x])
+							_check(hs[2].y > maxf(hs[0].y, hs[1].y) + 0.25, "hit 3 comes up from below (head height %.2f vs %.2f)" % [hs[2].y, maxf(hs[0].y, hs[1].y)])
+						_check(_mark.q_hud == 4, "COMBO counter shows landed hits (%d)" % _mark.q_hud)
+						_check(not is_instance_valid(_mark.q_desk), "the finisher breaks the desk")
+						q_done = true
+				6, 7:  # 가벼운 타는 조금만 밀고(다음 타가 닿게), 돌진은 날린다
+					if tq > 0.9:
+						var d: Node3D = _mark.q_desk
+						var moved: float = (d.global_position - _mark.q_desk_pos).length() if is_instance_valid(d) else -1.0
+						if q == 6:
+							_check(moved > 0.02 and moved < 0.8 and d.hits == 1, "a light headbutt only nudges the desk (%.2f m, damage %d)" % [moved, d.hits if is_instance_valid(d) else -1])
+						else:
+							_check(moved > 2.0 and d.hits == 2, "the charge launches the desk (%.2f m, damage %d)" % [moved, d.hits if is_instance_valid(d) else -1])
+						if is_instance_valid(d):
+							d.queue_free()
+						q_done = true
+			if q_done:
+				fl.done = true
+				if p._state == 0 and p._hitstop_left <= 0.0:
+					_mark.erase("q_t0")
+					_mark.q = q + 1
+					if q == 8:
+						_next()
+
+		10:  # 9시 마감: 시계를 8:59:58 로 돌려 마감 처리 확인
 			if _t < 0.05:
 				_main.clock.game_seconds = 9 * 3600 - 2.0
 			elif _t > 1.5:
@@ -294,6 +403,16 @@ func _process(delta: float) -> bool:
 func _next() -> void:
 	_step += 1
 	_t = 0.0
+
+
+## 시각 at 에 키를 한 번 눌렀다 뗀다 (flags 에 진행 상태를 적는다)
+func _tap(action: String, t: float, at: float, flags: Dictionary) -> void:
+	if t >= at and not flags.has("down"):
+		flags.down = true
+		Input.action_press(action)
+	elif flags.has("down") and not flags.has("up"):
+		flags.up = true
+		Input.action_release(action)
 
 
 ## 카메라에서 Ram 몸 가운데까지 벽(StaticBody3D)이 가로막지 않는지

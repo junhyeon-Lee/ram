@@ -15,6 +15,14 @@ var _yaw := 0.0
 var shake := 0.0                     # 화면 흔들림 세기 (m). 박치기가 맞으면 커졌다가 빠르게 줄어든다
 @export var shake_decay := 9.0
 
+# 강조: 피니시(일어섰다 내리찍기) 동안 카메라가 위로 올라가 조금 다가서서 내려다본다.
+# 등 뒤 높이 그대로면 내리찍는 순간 돌머리가 Ram 몸에 가려 안 보인다.
+@export var emphasis_height := 1.3    # 강조가 1일 때 더 올라가는 높이 (m)
+@export var emphasis_closer := 0.5    # 강조가 1일 때 다가서는 거리 (m)
+@export var emphasis_follow := 6.0    # 강조가 붙고 풀리는 빠르기
+var _emphasis := 0.0                  # 지금 값 (0~1)
+var _emphasis_target := 0.0
+
 
 func _ready() -> void:
 	if target:
@@ -27,6 +35,7 @@ func _physics_process(delta: float) -> void:
 		return
 	# 산재비스탄 중에도 카메라는 실제 시간으로 움직여야 화면이 끈적이지 않는다
 	var real_delta := delta / Engine.time_scale
+	_emphasis = lerpf(_emphasis, _emphasis_target, 1.0 - exp(-emphasis_follow * real_delta))
 	_yaw = lerp_angle(_yaw, target.global_rotation.y, 1.0 - exp(-yaw_follow * real_delta))
 	var next := global_position.lerp(_desired_position(), 1.0 - exp(-pos_follow * real_delta))
 	# 벽에 막히면 곧바로 벽 안쪽으로 당기고, 벗어나면 위 lerp 로 천천히 원래 거리로 돌아간다
@@ -44,9 +53,15 @@ func add_shake(amount: float) -> void:
 	shake = minf(shake + amount, 0.35)
 
 
+## 플레이어가 부른다: 0 = 보통, 1 = 피니시 강조
+func set_emphasis(amount: float) -> void:
+	_emphasis_target = clampf(amount, 0.0, 1.0)
+
+
 func _desired_position() -> Vector3:
 	var back := Vector3(sin(_yaw), 0.0, cos(_yaw))
-	return target.global_position + back * distance + Vector3.UP * height
+	return target.global_position + back * (distance - emphasis_closer * _emphasis) \
+			+ Vector3.UP * (height + emphasis_height * _emphasis)
 
 
 ## Ram 몸 가운데에서 pos 까지 벽(StaticBody3D)이 막으면 벽 안쪽 자리를 돌려준다.

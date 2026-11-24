@@ -122,9 +122,15 @@ func _process(delta: float) -> bool:
 				_mark.h_dash = true
 				_press([])
 				_check(_p._current_action == "Dash", "arrow + Shift dashes at home (%s)" % _p._current_action)
+				_mark.dash_t = _t
+				_mark.dash_p = _p.position
 			elif _p._state == MOVE:
 				var d: Vector3 = _p.position - _mark.p
 				_check(d.x > 1.0 and absf(d.z) < 0.6, "dash carries Ram the way the arrow points (%.2f, %.2f)" % [d.x, d.z])
+				# 대시는 달리기보다 확실히 빨라야 한다 (평가 때는 0.61초에 1.05m 로 달리기의 절반이었다)
+				var dash_m: float = (_p.position - _mark.dash_p).length()
+				var dash_s: float = _t - _mark.dash_t
+				_check(dash_m / dash_s > _p.forward_speed * 1.3, "dash is faster than running (%.2f m in %.2f s = %.1f m/s, run %.1f)" % [dash_m, dash_s, dash_m / dash_s, _p.forward_speed])
 				_next()
 		9:  # 집 안 패링(E)·백스텝(Shift 만)
 			if _t < 0.05:
