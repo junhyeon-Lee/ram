@@ -94,7 +94,30 @@ Ram 은 시험용 층과 같은 플레이어(`game/player/player.gd`)를 자유 
 | `tools/godot/commute_test.gd` | 집·출근길 헤드리스 자동 점검 |
 | `tools/blender/build_home.py` · `build_commute.py` | 집(돌 이글루 방 + 알)과 출근길(마을·광장·회사) 장면을 만들고 게임용 GLB 로 내보냄 |
 | `docs/audit/2026-11-20/` | 냉정한 평가 기록: 기준·점수·살아남은 지적(README), 평가자 보고서, 증거 화면, 측정 스크립트 |
+| `tools/godot/evolution/` | 진화 과정 녹화: git 기록에서 단계별 코드를 꺼내 같은 키 입력을 재생해 영상으로 남긴다 (아래 '진화 과정 영상') |
 | `tools/godot/compare_models.gd` | 디자인 전·후 비교: GLB 여러 개를 같은 크기·조명으로 3/4 앞·옆·뒤·게임 카메라·3/4 뒤·얼굴 6각도 찍어 한 장으로. `godot --path . --resolution 420x420 --script tools/godot/compare_models.gd -- out.png 이름=a.glb 이름=b.glb@0,0.03,0.18 [--game]` |
+
+## 진화 과정 영상
+
+조작감이 단계마다 어떻게 달라졌는지 모아 둔 것. 그때그때 찍어 두지 않았어도, git 기록의 그 시점 코드를 꺼내 시험용 층에서 **같은 키 입력 22초**를 재생해 찍는다(달리기 → 제자리 돌기 → 서서 Space 네 번 → 백스텝 → 패링 → 위키 누른 채 Space 네 번 → Space 길게 → 돌아서 달리다 치기 → 산재비스탄). 화면 아래에 단계 이름과 누르는 키가 나온다.
+
+| 파일 | 내용 |
+|---|---|
+| [`docs/renders/evolution/ram_first_vs_now.mp4`](docs/renders/evolution/ram_first_vs_now.mp4) | 첫 판(11/05)과 11/25 판을 좌우로 |
+| [`docs/renders/evolution/ram_four_stages.mp4`](docs/renders/evolution/ram_four_stages.mp4) | 1 · 6 · 9 · 11단계를 2×2 로 |
+| `docs/renders/evolution/overview_*.jpg` | 11단계 영상의 같은 순간(서서 연타 중, 위키 누른 채 연타 중)을 나란히 |
+| `docs/renders/evolution/look_evolution.jpg` | 모습의 진화: Godot 이전 모델 11단계(git 기록의 렌더) |
+
+![모습의 진화](docs/renders/evolution/look_evolution.jpg)
+
+단계별 영상 11개와 전체를 이은 영상(4분 7초, 22MB)은 용량 때문에 저장소에 넣지 않는다. 다시 만들려면:
+
+```powershell
+pwsh tools/godot/evolution/record_all.ps1      # 단계마다 게임 창이 40초쯤 떴다 닫힌다 → out\evolution\NN_<해시>.ogv
+pwsh tools/godot/evolution/encode_all.ps1      # MP4 변환 + 전체 이어 보기 + 비교 영상 (ffmpeg 필요: pip install imageio-ffmpeg)
+```
+
+단계가 늘면 `tools/godot/evolution/stages.ps1` 에 한 줄을 더한다. 입력 순서는 `driver.gd` 의 `TIMELINE` 이고, 게임 내부 변수는 건드리지 않고 입력 이름만 쓴다(첫 Godot 판부터 같다).
 
 ## 주인공 모델 다시 만들기
 
