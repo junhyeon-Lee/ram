@@ -371,14 +371,14 @@ func _process(delta: float) -> bool:
 						_check(_mark.q_hud == 4, "COMBO counter shows landed hits (%d)" % _mark.q_hud)
 						_check(not is_instance_valid(_mark.q_desk), "the finisher breaks the desk")
 						q_done = true
-				6, 7:  # 가벼운 타는 조금만 밀고(다음 타가 닿게), 돌진은 날린다
+				6, 7:  # 가벼운 타는 조금만 밀고(다음 타가 닿게), 날리는 타(7: launcher 로 직접 시작)는 날린다
 					if tq > 0.9:
 						var d: Node3D = _mark.q_desk
 						var moved: float = (d.global_position - _mark.q_desk_pos).length() if is_instance_valid(d) else -1.0
 						if q == 6:
 							_check(moved > 0.02 and moved < 0.8 and d.hits == 1, "a light headbutt only nudges the desk (%.2f m, damage %d)" % [moved, d.hits if is_instance_valid(d) else -1])
 						else:
-							_check(moved > 2.0 and d.hits == 2, "the charge launches the desk (%.2f m, damage %d)" % [moved, d.hits if is_instance_valid(d) else -1])
+							_check(moved > 2.0 and d.hits == 2, "a launching headbutt launches the desk (%.2f m, damage %d)" % [moved, d.hits if is_instance_valid(d) else -1])
 						if is_instance_valid(d):
 							d.queue_free()
 						q_done = true
@@ -390,7 +390,57 @@ func _process(delta: float) -> bool:
 					if q == 8:
 						_next()
 
-		10:  # 9시 마감: 시계를 8:59:58 로 돌려 마감 처리 확인
+		10:  # 콤보가 이어지게: 위키를 누른 채 연타해도 첫 타가 날리지 않고, 떨어져 있어도 다가서며, 헛쳐도 앞으로 나아간다
+			var k: int = _mark.get("k", 0)
+			if not _mark.has("k_t0"):
+				_mark.k_t0 = _t
+				_mark.k_taps = 0
+				_mark.k_first = ""
+				_mark.k_step = 0.0
+				_mark.k_hitstops = p.hitstop_count
+				# 1번은 옆 줄에서: 0번에서 앞으로 달려간 Ram 이 서 있던 자리에 책상을 만들면 겹쳐서 튕겨 나간다
+				var k_spot := Vector3(2.0 if k == 1 else -2.0, 0.05, 9.0)
+				p.global_position = k_spot
+				p.global_rotation.y = 0.0 if k < 2 else PI      # 2: 책상이 없는 뒷벽 쪽
+				_mark.k_pos = k_spot
+				if k < 2:
+					_main._breakable("StepDesk%d" % k, Vector3(1.4, 0.9, 0.8), Vector3(k_spot.x, 0.45, k_spot.z - (1.6 if k == 0 else 2.0)), Color(0.6, 0.5, 0.4))
+					_mark.k_desk = _main.get_node("StepDesk%d" % k)
+			var tk: float = _t - float(_mark.k_t0)
+			if k == 0 and tk < 2.2:
+				Input.action_press("move_forward")              # 사람이 흔히 하듯 위키를 누른 채 연타
+			else:
+				Input.action_release("move_forward")
+			var k_taps: int = 4 if k < 2 else 1
+			if int(_mark.k_taps) < k_taps and tk >= 0.15 + 0.35 * int(_mark.k_taps):
+				Input.action_press("attack")
+				_mark.k_taps = int(_mark.k_taps) + 1
+				_mark.k_up = tk + 0.05
+			elif _mark.has("k_up") and tk >= float(_mark.k_up):
+				Input.action_release("attack")
+				_mark.erase("k_up")
+			if _mark.k_first == "" and p._current_action != "":
+				_mark.k_first = p._current_action
+			if p.combo_step == 1:
+				_mark.k_step = maxf(_mark.k_step, p.step_moved)
+			if tk > (3.2 if k < 2 else 1.6) and p._state == 0:
+				var k_landed: int = p.hitstop_count - _mark.k_hitstops
+				match k:
+					0:
+						_check(_mark.k_first == RamPlayer.DASH_ATTACK, "Up+Space opens with the charge (%s)" % _mark.k_first)
+						_check(k_landed == 4 and not is_instance_valid(_mark.k_desk), "holding Up and mashing Space still lands the whole combo (%d landed)" % k_landed)
+					1:
+						_check(_mark.k_step > 0.5, "the first headbutt steps in toward a desk 2 m away (%.2f m)" % _mark.k_step)
+						_check(k_landed == 4 and not is_instance_valid(_mark.k_desk), "the combo connects from 2 m away (%d landed)" % k_landed)
+					2:
+						var k_moved: float = (p.global_position - _mark.k_pos).length()
+						_check(k_landed == 0 and k_moved > 0.4 and k_moved < 1.2, "a whiffed headbutt still carries Ram forward (%.2f m)" % k_moved)
+				_mark.erase("k_t0")
+				_mark.k = k + 1
+				if k == 2:
+					_next()
+
+		11:  # 9시 마감: 시계를 8:59:58 로 돌려 마감 처리 확인
 			if _t < 0.05:
 				_main.clock.game_seconds = 9 * 3600 - 2.0
 			elif _t > 1.5:

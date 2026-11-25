@@ -1,7 +1,8 @@
 ## Ram — 플레이어 조작
 ## 방향키: 위·아래 앞뒤 이동, 좌우 몸 돌리기 (카메라가 따라 돈다)
 ## Space 박치기(늘 같은 순서의 4타 콤보: 왼쪽 들이받기 → 오른쪽 후려치기 → 올려치기 → 내리찍기 피니시.
-##   1~3타는 조금만 밀고 피니시가 날린다. 길게 누르면 바로 피니시, 위+Space 돌진)
+##   1~3타는 조금만 밀고 피니시가 날린다. 길게 누르면 바로 피니시, 위+Space 는 달려들며 여는 첫 타(돌진).
+##   박치기마다 맞는 순간까지 앞의 대상 쪽으로 다가선다)
 ## E 공중제비 꼬리 패링 · Shift 백스텝 · R 산재비스탄(시간 감속, 동작 중에도 켜진다)
 ## 동작 중에 누른 Space·Shift·E 는 0.2초 기억했다가 할 수 있게 되는 순간 나간다.
 ##   박치기의 회복 구간은 Shift·E(맞는 순간 0.1초 뒤)와 방향키(0.3초 뒤)로 끊을 수 있다.
@@ -35,15 +36,17 @@ const ATTACK_VARIANTS := ["Attack_RearSlam", "Attack_LowCharge", "Attack_FlankBu
 # 연타의 앞 타는 거의 멈추지 않고, 뒤로 갈수록 길게 멈춰 '탁-탁-탁 … 쾅'이 되게 한다.
 const F := 1.0 / 60.0
 const ATTACKS := {
-	"Attack_RearSlam": {"hits": [0.50], "stop": 6 * F, "shake": 0.22, "kick": 8.0},     # 강 (콤보 피니시는 아래 배율로 8프레임)
-	"Attack_LowCharge": {"hits": [0.333], "stop": 6 * F, "shake": 0.15, "kick": 7.0},   # 강 (돌진)
-	"Attack_FlankButt": {"hits": [0.367], "stop": 2 * F, "shake": 0.12, "kick": 6.5},   # 약 (콤보 1타)
+	# 흔들림(shake, 화면이 밀리는 폭 m)도 뒤로 갈수록 크게: 연타 세 번은 살짝, 피니시만 크게 (2026-11-25.
+	# 전에는 1~3타가 0.12 씩이라 4타가 다 맞으면 0.8초 내내 화면이 덜덜거렸다)
+	"Attack_RearSlam": {"hits": [0.50], "stop": 6 * F, "shake": 0.14, "kick": 8.0},     # 강 (콤보 피니시는 아래 배율로 8프레임)
+	"Attack_LowCharge": {"hits": [0.333], "stop": 6 * F, "shake": 0.06, "kick": 7.0},   # 강 (돌진)
+	"Attack_FlankButt": {"hits": [0.367], "stop": 2 * F, "shake": 0.035, "kick": 6.5},  # 약 (콤보 1타)
 	# 밀어붙이기는 날리지 않고 Ram 걸음(0.25m)만큼씩 밀고 간다: 약하게, 위로 띄우지 않게
-	"Attack_Shove": {"hits": [0.367, 0.633, 0.90], "stop": 1 * F, "shake": 0.06, "kick": 1.6, "up": 0.0},
+	"Attack_Shove": {"hits": [0.367, 0.633, 0.90], "stop": 1 * F, "shake": 0.03, "kick": 1.6, "up": 0.0},
 	# 콤보 연결용 (첫 버전 박치기 재활용). 올려치기는 물체를 위로 띄운다
-	"Attack_Hook": {"hits": [0.433], "stop": 3 * F, "shake": 0.12, "kick": 6.5},          # 중 (콤보 2타)
+	"Attack_Hook": {"hits": [0.433], "stop": 3 * F, "shake": 0.045, "kick": 6.5},         # 중 (콤보 2타)
 	# light_up: 가벼운 타일 때도 이만큼은 띄운다 (올려치기에 책상이 살짝 떴다가 피니시를 맞는다)
-	"Attack_Uppercut": {"hits": [0.40], "stop": 4 * F, "shake": 0.12, "kick": 5.0, "up": 1.2, "light_up": 1.3},  # 중 (3타)
+	"Attack_Uppercut": {"hits": [0.40], "stop": 4 * F, "shake": 0.06, "kick": 5.0, "up": 1.2, "light_up": 1.3},  # 중 (3타)
 }
 
 # 콤보 (시푸 참고): Space 를 이어 누르면 회복 동작을 끊고 다음 박치기로 잇는다.
@@ -77,7 +80,23 @@ const ACTION_TUNE := {
 # 콤보 구조 (2026-11-21): 가벼운 타는 대상을 조금만 밀어 제자리에 두고, 날리는 것은 피니시·돌진뿐이다.
 #   (전에는 첫 타가 6.5~8m/s 로 날려 버려 2~4타가 허공을 쳤다)
 # 이어지는 타(2·3타)는 예비 동작을 건너뛰고 빠르게 틀어 '탁-탁-탁 … 쾅' 박자를 만든다. 피니시는 원래 빠르기.
-const LIGHT_KICK := 1.8               # 가벼운 타가 대상에 주는 속도(m/s), 위로 띄우지 않는다
+const LIGHT_KICK := 1.8               # 가벼운 타가 대상에 주는 속도(m/s)의 기본값 (콤보 밖에서 쓴 가벼운 타)
+# 넉백 (2026-11-25): 콤보 타마다 대상에 주는 속도(m/s). 조금씩만 밀어 다음 타가 닿게 하고, 날리는 것은 피니시뿐이다.
+const COMBO_KICK := [2.2, 2.6, 2.2]   # 1타 · 2타 · 3타 (3타는 올려치기라 light_up 만큼 위로도 띄운다)
+const CHARGE_KICK := 3.0              # 돌진(방향키+Space)으로 여는 첫 타. 조금 더 세게 밀지만 날리지는 않는다
+# 방향키+Space 돌진이 대상을 날리는지. 꺼 두면 돌진은 '붙으며 여는 첫 타'가 되어 2·3타·피니시로 이어진다
+# (켜져 있던 2026-11-24 까지는 위키를 누른 채 Space 를 누르면 첫 타가 날려 버려 콤보가 이어지지 않았다).
+const CHARGE_LAUNCHES := false
+# 공격하며 앞으로 (2026-11-25): 박치기마다 맞는 순간까지 앞의 대상 쪽으로 다가선다. 밀려난 대상을 따라붙어 콤보가 이어진다.
+const STEP_REACH := 1.05              # 맞는 순간 대상과 이 거리(m, 몸 가운데끼리)가 되게 다가선다
+const STEP_MAX := [1.0, 0.8, 0.8, 1.0]   # 타마다 다가설 수 있는 가장 먼 거리(m): 1타 · 2타 · 3타 · 피니시
+const STEP_MAX_CHARGE := 2.4          # 돌진은 멀리서 달려든다
+const STEP_FREE := 0.35               # 앞에 대상이 없을 때 나아가는 거리(m). 헛쳐도 앞으로 밀고 간다
+const STEP_FREE_CHARGE := 1.2
+const STEP_SPEED_MAX := 8.0           # 다가서는 속도 상한(m/s)
+const AIM_RANGE := 3.4                # 이 거리 안, 앞쪽 AIM_CONE 안의 가장 가까운 대상을 겨눈다
+const AIM_CONE_DEG := 50.0
+const AIM_TURN_DEG := 30.0            # 박치기를 시작할 때 대상 쪽으로 몸을 돌려 주는 한도
 const LIGHT_DAMAGE := 1
 const LAUNCH_DAMAGE := 2              # 피니시·돌진은 집기를 두 배로 깎는다 (집기는 4 를 버틴다)
 const LINK_TUNE := {"speed": 1.35, "skip": 0.13}
@@ -124,7 +143,10 @@ var _buffer_left := 0.0
 var _carry_speed := 0.0               # 대시가 이어받은 달리기 속도
 var _carry_left := 0.0
 var _tune := {}                       # 지금 동작에 걸린 손보기 (ACTION_TUNE 또는 LINK_TUNE)
-var _launcher := false                # 지금 박치기가 대상을 날리는 타인지 (피니시·돌진)
+var _launcher := false                # 지금 박치기가 대상을 날리는 타인지 (피니시)
+var _step_target: Node3D              # 이번 박치기가 다가서는 대상 (없으면 null)
+var _step_budget := 0.0               # 이번 박치기에서 더 다가설 수 있는 거리(m)
+var step_moved := 0.0                 # 점검용: 이번 박치기에서 다가선 거리(m)
 
 var _model: Node3D
 var _anim: AnimationPlayer
@@ -244,10 +266,10 @@ func _start_buffered(only: Array = BUFFERED_ACTIONS) -> bool:
 			combo_step = 1
 			combo_hits = 0
 			_face(dir)
-			# 방향키(자유 이동이 아니면 위)+Space 는 돌진 공격, 그냥 Space 는 4종을 번갈아
+			# 방향키(자유 이동이 아니면 위)+Space 는 돌진으로 붙으며 여는 첫 타, 그냥 Space 는 제자리에서 여는 첫 타
 			var pushing := dir != Vector3.ZERO if free_move else Input.is_action_pressed("move_forward")
 			if pushing:
-				_start_attack(DASH_ATTACK, true)
+				_start_attack(DASH_ATTACK, CHARGE_LAUNCHES)
 			else:
 				_start_attack(COMBO_CHAIN[0])
 		"backstep":
@@ -381,6 +403,7 @@ func _action(real_delta: float) -> void:
 			velocity.x += fwd.x * lack
 			velocity.z += fwd.z * lack
 		_carry_left -= real_delta
+	_step_in(real_delta)
 	# 회전은 root motion 변화량 대신 동작 속 root 뼈의 절대 방향을 읽어 차이만큼 돌린다.
 	# (Godot 의 회전 변화량은 뼈 좌표계 기준이고, 180° 지점에서 쿼터니언 부호가 뒤집혀 튄다)
 	var yaw := _root_yaw()
@@ -402,6 +425,68 @@ func _action(real_delta: float) -> void:
 		return
 	if not hits.is_empty():
 		_update_combo(real_delta, hits)
+
+
+## 공격하며 앞으로: 첫 맞는 순간까지, 겨눈 대상과 STEP_REACH 거리가 되도록 (대상이 없으면 STEP_FREE 만큼) 나아간다.
+## 동작 자체의 이동(root motion)에 더하는 속도이고, 남은 거리를 맞는 순간까지 남은 시간으로 나눠 매 틱 다시 잰다.
+func _step_in(real_delta: float) -> void:
+	if _step_budget <= 0.0 or _hits_done > 0:
+		return
+	var hits: Array = ATTACKS.get(_current_action, {}).get("hits", [])
+	if hits.is_empty():
+		return
+	var left := (float(hits[0]) - _clip_pos()) / float(_tune.get("speed", 1.0))   # 맞는 순간까지 남은 실제 시간
+	if left <= 0.0:
+		return
+	var fwd := -global_transform.basis.z
+	var want := _step_budget                       # 대상이 없으면 남은 몫을 고르게 나아간다
+	if is_instance_valid(_step_target):
+		var to := _step_target.global_position - global_position
+		want = (to.x * fwd.x + to.z * fwd.z) - STEP_REACH
+	var speed := clampf(want / maxf(left, real_delta), 0.0, STEP_SPEED_MAX)
+	speed = minf(speed, _step_budget / real_delta)
+	velocity.x += fwd.x * speed
+	velocity.z += fwd.z * speed
+	_step_budget -= speed * real_delta
+	step_moved += speed * real_delta
+
+
+## 앞쪽 AIM_CONE 안, AIM_RANGE 안에서 가장 가까운 박치기 대상 (없으면 null)
+func _find_target() -> Node3D:
+	var query := PhysicsShapeQueryParameters3D.new()
+	var sphere := SphereShape3D.new()
+	sphere.radius = AIM_RANGE
+	query.shape = sphere
+	query.transform = Transform3D(Basis(), global_position + Vector3.UP * 0.6)
+	query.exclude = [get_rid()]
+	var fwd := -global_transform.basis.z
+	var best: Node3D = null
+	var best_dist := INF
+	for hit in get_world_3d().direct_space_state.intersect_shape(query, 32):
+		var body := hit.collider as Node3D
+		if body == null or not body.has_method("take_headbutt"):
+			continue
+		var to := (body.global_position - global_position) * Vector3(1, 0, 1)
+		var dist := to.length()
+		if dist < 0.01 or dist > AIM_RANGE or to.normalized().dot(fwd) < cos(deg_to_rad(AIM_CONE_DEG)):
+			continue
+		if dist < best_dist:
+			best = body
+			best_dist = dist
+	return best
+
+
+## 박치기를 시작할 때: 대상을 겨눠 몸을 조금 돌리고, 이번 타에서 다가설 몫을 정한다
+func _aim_and_plan_step() -> void:
+	var charge := _current_action == DASH_ATTACK
+	_step_target = _find_target()
+	step_moved = 0.0
+	if _step_target:
+		var to := _step_target.global_position - global_position
+		rotation.y = rotate_toward(rotation.y, atan2(-to.x, -to.z), deg_to_rad(AIM_TURN_DEG))
+		_step_budget = STEP_MAX_CHARGE if charge else float(STEP_MAX[clampi(combo_step - 1, 0, STEP_MAX.size() - 1)])
+	else:
+		_step_budget = STEP_FREE_CHARGE if charge else STEP_FREE
 
 
 ## 회복 구간 끊기 (끊었으면 true).
@@ -444,6 +529,7 @@ func _start_attack(anim_name: String, launcher := false, link := false) -> void:
 	if link:
 		tune = FINISHER_LINK_TUNE if _is_finisher else LINK_TUNE
 	_start_action(anim_name, 0.05, tune)
+	_aim_and_plan_step()
 	_camera_emphasis(FINISHER_CAM if _is_finisher else 0.0)
 	Sfx.play_at(get_parent(), Sfx.whoosh(), global_position + Vector3.UP, -6.0, randf_range(0.9, 1.15))
 
@@ -486,7 +572,7 @@ func _headbutt_hit(spec: Dictionary) -> void:
 	var kick: float = spec.get("kick", 6.5) * float(bonus["kick"])
 	var up: float = spec.get("up", 0.35)
 	if not _launcher:
-		kick = minf(kick, LIGHT_KICK)
+		kick = minf(kick, _light_kick())
 		up = spec.get("light_up", 0.0)
 	var landed := false
 	for hit in get_world_3d().direct_space_state.intersect_shape(query, 16):
@@ -514,6 +600,15 @@ func _headbutt_hit(spec: Dictionary) -> void:
 		var cam := get_viewport().get_camera_3d()
 		if cam and cam.has_method("add_shake"):
 			cam.add_shake(spec.get("shake", 0.1) * float(bonus["shake"]))
+
+
+## 가벼운 타가 대상에 주는 속도: 돌진으로 연 첫 타, 콤보 1~3타, 그 밖(콤보 밖에서 쓴 타)
+func _light_kick() -> float:
+	if _current_action == DASH_ATTACK:
+		return CHARGE_KICK
+	if combo_step >= 1 and combo_step <= COMBO_KICK.size():
+		return float(COMBO_KICK[combo_step - 1])
+	return LIGHT_KICK
 
 
 func _base_anim_speed() -> float:

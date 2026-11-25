@@ -14,6 +14,8 @@ extends Camera3D
 var _yaw := 0.0
 var shake := 0.0                     # 화면 흔들림 세기 (m). 박치기가 맞으면 커졌다가 빠르게 줄어든다
 @export var shake_decay := 9.0
+@export var shake_hz := 17.0          # 흔들리는 박자 (초당 왕복)
+var _shake_time := 0.0
 
 # 강조: 피니시(일어섰다 내리찍기) 동안 카메라가 위로 올라가 조금 다가서서 내려다본다.
 # 등 뒤 높이 그대로면 내리찍는 순간 돌머리가 Ram 몸에 가려 안 보인다.
@@ -37,14 +39,18 @@ func _physics_process(delta: float) -> void:
 	var real_delta := delta / Engine.time_scale
 	_emphasis = lerpf(_emphasis, _emphasis_target, 1.0 - exp(-emphasis_follow * real_delta))
 	_yaw = lerp_angle(_yaw, target.global_rotation.y, 1.0 - exp(-yaw_follow * real_delta))
-	var next := global_position.lerp(_desired_position(), 1.0 - exp(-pos_follow * real_delta))
-	# 벽에 막히면 곧바로 벽 안쪽으로 당기고, 벗어나면 위 lerp 로 천천히 원래 거리로 돌아간다
+	# 가려는 자리를 먼저 벽 안쪽으로 고친 뒤 그 자리로 다가간다. 벽 뒤의 자리를 향해 다가가면
+	# '조금 가까워짐 → 벽에 닿아 다시 당겨짐'이 틱마다 되풀이되어 카메라가 덜덜 떤다(벽을 등진 시작 자리에서 17cm 씩).
+	var next := global_position.lerp(_clear_of_walls(_desired_position()), 1.0 - exp(-pos_follow * real_delta))
+	# 다가가는 길에 벽이 끼어들면(급히 돌 때) 곧바로 벽 안쪽으로 당긴다
 	global_position = _clear_of_walls(next)
 	var fwd := Vector3(-sin(_yaw), 0.0, -cos(_yaw))
 	look_at(target.global_position + fwd * look_ahead + Vector3.UP * look_height)
-	# 흔들림은 카메라 자리를 바꾸지 않고 화면만 흔든다 (다음 프레임 위치 계산에 쌓이지 않게)
-	h_offset = randf_range(-1.0, 1.0) * shake
-	v_offset = randf_range(-1.0, 1.0) * shake
+	# 흔들림은 카메라 자리를 바꾸지 않고 화면만 흔든다 (다음 프레임 위치 계산에 쌓이지 않게).
+	# 틱마다 새 난수를 쓰면 120Hz 잡음이 되어 화면이 덜덜거린다 → 두 박자의 물결로 부드럽게 흔든다.
+	_shake_time += real_delta
+	h_offset = sin(_shake_time * TAU * shake_hz) * shake
+	v_offset = cos(_shake_time * TAU * shake_hz * 1.31 + 1.0) * shake * 0.8
 	shake = maxf(0.0, shake - shake * shake_decay * real_delta - 0.002)
 
 
